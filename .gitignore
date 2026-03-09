@@ -1,0 +1,4 @@
+data/trust.db
+data/olist/
+venv/
+__pycache__/
