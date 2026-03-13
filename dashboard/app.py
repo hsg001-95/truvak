@@ -2,6 +2,8 @@ import streamlit as st
 import requests
 import pandas as pd
 import json
+import os
+from PIL import Image
 from datetime import datetime
 import random
 
@@ -131,7 +133,7 @@ with st.sidebar:
 
     page = st.radio(
         "Navigation",
-        ["📊 Dashboard", "➕ Score New Order", "⚙️ Rule Configuration", "📈 Model Insights"],
+        ["📊 Dashboard", "🛍️ Shopify Live Orders", "➕ Score New Order", "⚙️ Rule Configuration", "📈 Model Insights"],
         label_visibility="collapsed"
     )
 
@@ -400,7 +402,168 @@ elif page == "📈 Model Insights":
     st.dataframe(results_df, use_container_width=True, hide_index=True)
 
     st.divider()
+# ─────────────────────────────────────────────────────────────────────────────
+# PAGE 5: SHOPIFY LIVE ORDERS
+# ─────────────────────────────────────────────────────────────────────────────
+elif page == "🛍️ Shopify Live Orders":
+    st.markdown('<p class="header-title">🛍️ Shopify Live Orders</p>',
+                unsafe_allow_html=True)
+    st.markdown(f"*Store: `trust-intelligence-dev.myshopify.com`*")
+    st.divider()
 
+    # Fetch and score all Shopify orders
+    with st.spinner("Fetching live orders from Shopify..."):
+        try:
+            r = requests.get(
+                f"{API_URL}/v1/shopify/orders",
+                timeout=15
+            )
+            if r.status_code == 200:
+                data   = r.json()
+                orders = data.get("orders", [])
+            else:
+                orders = []
+                st.error(f"API error: {r.status_code}")
+        except Exception as e:
+            orders = []
+            st.error(f"Connection error: {e}")
+
+    if not orders:
+        st.info("No Shopify orders found. Create orders in your Shopify admin.")
+        st.markdown("👉 [Create a test order](https://trust-intelligence-dev.myshopify.com/admin/orders/new)")
+    else:
+        # ── KPI Row ───────────────────────────────────────────────────────────
+        total     = len(orders)
+        high_risk = sum(1 for o in orders if o.get("risk_level") == "HIGH")
+        blocked   = sum(1 for o in orders if o.get("recommended_action") == "block_cod")
+        avg_score = sum(o.get("score", 0) for o in orders) / total
+        cod_count = sum(1 for o in orders if o.get("is_cod") == 1)
+
+        k1, k2, k3, k4, k5 = st.columns(5)
+        k1.metric("Live Orders",       total)
+        k2.metric("High Risk",         high_risk,
+                  delta=f"{high_risk/total:.0%}",
+                  delta_color="inverse")
+        k3.metric("COD Blocked",       blocked,
+                  delta=f"~₹{blocked*800:,} saved",
+                  delta_color="normal")
+        k4.metric("Avg Trust Score",   f"{avg_score:.1f}")
+        k5.metric("COD Orders",        cod_count)
+
+        st.divider()
+
+        # ── Live order cards ──────────────────────────────────────────────────
+        st.markdown("### Live Scored Orders")
+
+        # Filter controls
+        f1, f2, _ = st.columns([1, 1, 3])
+        risk_f   = f1.selectbox("Risk Filter",   ["All","HIGH","MEDIUM","LOW"],
+                                key="shopify_risk")
+        action_f = f2.selectbox("Action Filter",
+                                ["All","block_cod","warn","approve","flag_review"],
+                                key="shopify_action")
+
+        filtered = [
+            o for o in orders
+            if (risk_f   == "All" or o.get("risk_level")         == risk_f)
+            and (action_f == "All" or o.get("recommended_action") == action_f)
+        ]
+
+        for o in filtered:
+            score   = o.get("score", 0)
+            risk    = get_risk_label(score)
+            action  = get_action_badge(o.get("recommended_action",""))
+            cod     = "💵 COD" if o.get("is_cod") else "💳 Prepaid"
+            name    = o.get("customer_name", "Guest")
+            order_n = o.get("shopify_order_number", o.get("order_id"))
+            value   = o.get("order_value", 0)
+
+            with st.expander(
+                f"{order_n}  |  {name}  |  Score: **{score}**  "
+                f"|  {risk}  |  {action}  |  ₹{value:,.0f}  |  {cod}"
+            ):
+                d1, d2, d3 = st.columns(3)
+                d1.markdown(f"**PIN Code:** `{o.get('pin_code','N/A')}`")
+                d2.markdown(f"**Payment:** {cod}")
+                d3.markdown(f"**RTO Probability:** `{o.get('model_rto_prob',0):.1%}`")
+
+                # Trust score bar
+                st.markdown(f"**Trust Score: {score}/100**")
+                st.progress(int(score) / 100)
+
+                # Risk factors
+                factors = o.get("factors", [])
+                if factors:
+                    st.markdown("**Risk Factors:**")
+                    for f in factors:
+                        st.markdown(f"- {f}")
+
+                # Fired rules
+                fired = o.get("fired_rules", [])
+                if fired:
+                    st.markdown("**Rules Fired:**")
+                    for rule in fired:
+                        st.warning(f"⚡ {rule}")
+
+                # Action badge
+                action_colors = {
+                    "block_cod":   "🚫 COD payment should be blocked for this order",
+                    "warn":        "⚠️ Proceed with caution — medium risk buyer",
+                    "flag_review": "🔎 Flag for manual review before shipping",
+                    "approve":     "✅ Low risk — safe to proceed",
+                }
+                st.info(action_colors.get(o.get("recommended_action",""), ""))
+
+                # Log outcome buttons
+                st.markdown("**Log Outcome:**")
+                b1, b2, b3 = st.columns(3)
+                if b1.button("✅ Delivered", key=f"sd_{order_n}"):
+                    if log_outcome(o.get("order_id",""), name, "delivered"):
+                        st.success("Logged: Delivered")
+                if b2.button("📦 RTO",       key=f"sr_{order_n}"):
+                    if log_outcome(o.get("order_id",""), name, "rto"):
+                        st.success("Logged: RTO")
+                if b3.button("↩️ Return",    key=f"sret_{order_n}"):
+                    if log_outcome(o.get("order_id",""), name, "return"):
+                        st.success("Logged: Return")
+
+        st.divider()
+
+        # ── Score distribution for Shopify orders ─────────────────────────────
+        st.markdown("### Score Distribution — Shopify Orders")
+        score_data = {"Score": [o.get("score",0) for o in orders]}
+        px = __import__("plotly.express", fromlist=["express"])
+        fig = px.histogram(
+            score_data, x="Score",
+            nbins=20,
+            color_discrete_sequence=["#1D4ED8"],
+            title="Trust Score Distribution — Live Shopify Orders"
+        )
+        fig.add_vline(x=40, line_dash="dash", line_color="#DC2626",
+                      annotation_text="Block threshold")
+        fig.add_vline(x=70, line_dash="dash", line_color="#16A34A",
+                      annotation_text="Safe threshold")
+        st.plotly_chart(fig, use_container_width=True)
+
+        # ── Risk breakdown pie ────────────────────────────────────────────────
+        st.markdown("### Risk Level Breakdown")
+        risk_counts = {"HIGH": 0, "MEDIUM": 0, "LOW": 0}
+        for o in orders:
+            rl = o.get("risk_level", "LOW")
+            risk_counts[rl] = risk_counts.get(rl, 0) + 1
+
+        pie_fig = px.pie(
+            values=list(risk_counts.values()),
+            names=list(risk_counts.keys()),
+            color=list(risk_counts.keys()),
+            color_discrete_map={
+                "HIGH":   "#DC2626",
+                "MEDIUM": "#D97706",
+                "LOW":    "#16A34A"
+            },
+            title="Risk Distribution — Live Orders"
+        )
+        st.plotly_chart(pie_fig, use_container_width=True)
     # Charts
     chart_files = {
         "AUC-ROC Curve":             "ml/auc_roc_curve.png",
@@ -415,7 +578,7 @@ elif page == "📈 Model Insights":
             st.markdown(f"**{title}**")
             if os.path.exists(path):
                 img = Image.open(path)
-                st.image(img, use_column_width=True)
+                st.image(img, use_container_width=True)
             else:
                 st.warning(f"Chart not found: `{path}` — run `python ml/train_model.py` first")
 

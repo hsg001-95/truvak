@@ -51,14 +51,21 @@ def map_order_to_features(order: dict) -> dict:
     our /score endpoint expects.
     """
     # Payment method → COD proxy
-    gateway = order.get("gateway", "").lower()
+    gateway = str(order.get("gateway", "")).lower()
     payment_method = order.get("payment_gateway_names", [])
+    financial_status = str(order.get("financial_status", "")).lower()
+
     is_cod = int(
-        "cod"          in gateway or
-        "cash"         in gateway or
-        "manual"       in gateway or
-        any("cod" in p.lower() or "cash" in p.lower()
-            for p in payment_method)
+        "cod" in gateway or
+        "cash" in gateway or
+        "manual" in gateway or
+        financial_status == "pending" or
+        any(
+            "cod" in p.lower() or
+            "cash" in p.lower() or
+            "manual" in p.lower()
+            for p in payment_method
+        )
     )
 
     # Customer details

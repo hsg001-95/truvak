@@ -13,6 +13,11 @@ from backend.db import init_db, get_connection
 from backend.privacy import hash_buyer_id
 from backend.rule_engine import RuleEngine, Rule
 
+import hmac
+import hashlib
+import json
+from fastapi import Request, BackgroundTasks
+
 # ── App setup ─────────────────────────────────────────────────────────────────
 app = FastAPI(
     title="Trust Intelligence Platform API",
@@ -258,3 +263,54 @@ def update_cod_threshold(merchant_id: str, threshold: float):
         if rule.rule_name == "Block COD - High Risk":
             rule.condition_value = threshold
     return {"status": "updated", "new_threshold": threshold}
+@app.post("/v1/rules/{merchant_id}/threshold")
+def update_cod_threshold(merchant_id: str, threshold: float):
+    if not (0 <= threshold <= 100):
+        raise HTTPException(400, "Threshold must be between 0 and 100")
+    for rule in engine.rules:
+        if rule.rule_name == "Block COD - High Risk":
+            rule.condition_value = threshold
+    return {"status": "updated", "new_threshold": threshold}
+
+
+# ── Shopify Webhook Receiver ──────────────────────────────────────────────────
+@app.post("/v1/shopify/webhook")
+async def shopify_webhook(request: Request, background_tasks: BackgroundTasks):
+    body = await request.body()
+    payload = {}
+    try:
+        payload = json.loads(body)
+    except Exception:
+        raise HTTPException(400, "Invalid JSON payload")
+    background_tasks.add_task(process_shopify_order, payload)
+    return {"status": "received"}
+
+
+def process_shopify_order(order: dict):
+    import sys
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from backend.shopify_integration import map_order_to_features, score_shopify_order
+    try:
+        features = map_order_to_features(order)
+        result   = score_shopify_order(order)
+        print(f"\n🛍️  New Shopify Order Received!")
+        print(f"   Order   : {features.get('_shopify_order_number')}")
+        print(f"   Customer: {features.get('_customer_name')}")
+        print(f"   Value   : ₹{features.get('order_value')}")
+        print(f"   Score   : {result.get('score')}")
+        print(f"   Risk    : {result.get('risk_level')}")
+        print(f"   Action  : {result.get('recommended_action')}")
+    except Exception as e:
+        print(f"Error processing Shopify order: {e}")
+
+
+@app.get("/v1/shopify/orders")
+def get_shopify_orders():
+    from backend.shopify_integration import fetch_orders, score_shopify_order
+    orders  = fetch_orders(limit=50)
+    results = []
+    for order in orders:
+        result = score_shopify_order(order)
+        if "error" not in result:
+            results.append(result)
+    return {"orders": results, "total": len(results)}
