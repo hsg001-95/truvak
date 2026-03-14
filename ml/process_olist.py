@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import os
+import json
 
 # ─────────────────────────────────────────────────────────────────────────────
 # OLIST → INDIA RTO FEATURE MAPPER
@@ -28,6 +29,28 @@ print(f"  Payments   : {len(payments):,}")
 print(f"  Items      : {len(items):,}")
 print(f"  Customers  : {len(customers):,}")
 print(f"  Reviews    : {len(reviews):,}")
+
+# Load Census PIN feature map
+PIN_FEATURE_MAP = {}
+PIN_FEATURE_PATH = "data/pin_feature_map.json"
+if os.path.exists(PIN_FEATURE_PATH):
+    with open(PIN_FEATURE_PATH) as f:
+        PIN_FEATURE_MAP = json.load(f)
+    print(f"  Census PIN features loaded: {len(PIN_FEATURE_MAP):,} PINs")
+
+# National median fallbacks
+NATIONAL_FALLBACK = {
+    "rbi_tier":             2,
+    "internet_penetration": 0.0083,
+    "mobile_penetration":   0.3861,
+    "electricity_access":   0.5105,
+    "urban_ratio":          0.2098,
+    "cod_risk_score":       0.7903,
+}
+
+def get_pin_features(pin_code: str) -> dict:
+    pin = str(pin_code).strip().zfill(6)
+    return PIN_FEATURE_MAP.get(pin, NATIONAL_FALLBACK)
 
 # ── Step 1: RTO Label ─────────────────────────────────────────────────────────
 # Brazil "canceled" + "unavailable" = our RTO equivalent
@@ -153,13 +176,48 @@ df["prev_rto_count"] = np.where(
     np.random.choice([0,1,2,3], len(df), p=[0.75,0.18,0.05,0.02])
 )
 df["is_first_order"] = (df["prev_rto_count"] == 0).astype(int)
+# ── Step 9b: Add Census socioeconomic features ────────────────────────────────
+print("Adding Census socioeconomic features...")
+
+# Map Brazil zip prefix → simulated Indian PIN for Census lookup
+# We use a deterministic mapping based on customer state tier
+BRAZIL_STATE_TO_SAMPLE_PIN = {
+    "SP": "400001", "RJ": "110001", "DF": "560001",  # Tier 1
+    "RS": "400001", "PR": "110001",
+    "MG": "226001", "SC": "302001", "GO": "380001",  # Tier 2
+    "ES": "411001", "BA": "452001",
+    # Everything else → Tier 3
+}
+
+def get_census_features_for_order(state_code: str) -> dict:
+    pin = BRAZIL_STATE_TO_SAMPLE_PIN.get(
+        str(state_code).upper(),
+        "828001"  # Default to Tier 3 for unknown states
+    )
+    return get_pin_features(pin)
+
+# customer_state is already present in df from customers_slim merge above.
+df["internet_penetration"] = df["customer_state"].apply(
+    lambda s: get_census_features_for_order(s)["internet_penetration"]
+)
+df["mobile_penetration"] = df["customer_state"].apply(
+    lambda s: get_census_features_for_order(s)["mobile_penetration"]
+)
+df["cod_risk_score"] = df["customer_state"].apply(
+    lambda s: get_census_features_for_order(s)["cod_risk_score"]
+)
+df["electricity_access"] = df["customer_state"].apply(
+    lambda s: get_census_features_for_order(s)["electricity_access"]
+)
 
 # ── Step 10: Clean and save ───────────────────────────────────────────────────
 FINAL_FEATURES = [
     "pin_tier", "is_cod", "order_value", "order_value_bucket",
     "freight_ratio", "item_count", "is_weekend", "is_festive_season",
-    "is_first_order", "prev_rto_count", "low_review",
-    "installments", "rto_label"
+    "is_first_order", "prev_rto_count", "low_review", "installments",
+    "internet_penetration", "mobile_penetration",
+    "cod_risk_score", "electricity_access",
+    "rto_label"
 ]
 
 df_final = df[FINAL_FEATURES].dropna().reset_index(drop=True)

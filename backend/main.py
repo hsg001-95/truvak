@@ -18,6 +18,27 @@ import hashlib
 import json
 from fastapi import Request, BackgroundTasks
 
+# Load Census PIN feature map
+PIN_FEATURE_JSON = os.path.join(
+    os.path.dirname(__file__), '..', 'data', 'pin_feature_map.json'
+)
+PIN_FEATURE_MAP  = {}
+if os.path.exists(PIN_FEATURE_JSON):
+    with open(PIN_FEATURE_JSON) as f:
+        PIN_FEATURE_MAP = json.load(f)
+    print(f"Census features loaded: {len(PIN_FEATURE_MAP):,} PINs")
+
+NATIONAL_FALLBACK = {
+    "internet_penetration": 0.0083,
+    "mobile_penetration":   0.3861,
+    "electricity_access":   0.5105,
+    "cod_risk_score":       0.7903,
+}
+
+def get_pin_features(pin_code: str) -> dict:
+    pin = str(pin_code).strip().zfill(6)
+    return PIN_FEATURE_MAP.get(pin, NATIONAL_FALLBACK)
+
 # ── App setup ─────────────────────────────────────────────────────────────────
 app = FastAPI(
     title="Trust Intelligence Platform API",
@@ -38,15 +59,33 @@ engine = RuleEngine()
 engine.load_defaults()
 
 # ── PIN tier lookup ───────────────────────────────────────────────────────────
-PIN_TIER_MAP = {
-    "110": 1, "400": 1, "560": 1, "600": 1, "500": 1, "700": 1,
-    "226": 2, "302": 2, "380": 2, "411": 2, "452": 2, "440": 2,
-    "828": 3, "845": 3, "743": 3, "535": 3, "494": 3, "814": 3,
+# Load full India PIN tier map at startup
+PIN_TIER_JSON_PATH = os.path.join(
+    os.path.dirname(__file__), '..', 'data', 'pin_tier_map.json'
+)
+if os.path.exists(PIN_TIER_JSON_PATH):
+    with open(PIN_TIER_JSON_PATH) as f:
+        FULL_PIN_TIER_MAP = json.load(f)
+    print(f"PIN tier map loaded: {len(FULL_PIN_TIER_MAP):,} PIN codes")
+else:
+    FULL_PIN_TIER_MAP = {}
+    print("WARNING: pin_tier_map.json not found — using prefix fallback")
+
+# Prefix fallback for unknown PINs
+PIN_PREFIX_FALLBACK = {
+    "11": 1, "40": 1, "56": 1, "60": 1, "50": 1, "70": 1,
+    "22": 2, "30": 2, "38": 2, "41": 2, "45": 2, "44": 2,
 }
 
 def get_pin_tier(pin_code: str) -> int:
-    prefix = str(pin_code)[:3]
-    return PIN_TIER_MAP.get(prefix, 2)  # Default Tier 2 if unknown
+    pin = str(pin_code).strip().zfill(6)
+    # Try exact match first
+    if pin in FULL_PIN_TIER_MAP:
+        return int(FULL_PIN_TIER_MAP[pin])
+    # Try prefix fallback
+    prefix = pin[:2]
+    return PIN_PREFIX_FALLBACK.get(prefix, 2)
+
 
 # ── Festive months (India calendar) ──────────────────────────────────────────
 FESTIVE_MONTHS = {10, 11}
@@ -93,19 +132,27 @@ def build_features(req: ScoreRequest, pin_tier: int,
     freight_ratio = min(0.3 + (pin_tier - 1) * 0.1, 0.6)  # Tier-based proxy
     low_review    = 0  # Will be updated after outcome is logged
 
+   # Census socioeconomic features
+    census_f = get_pin_features(req.pin_code)
+
     row = {
-        "pin_tier":           pin_tier,
-        "is_cod":             req.is_cod,
-        "order_value":        req.order_value,
-        "order_value_bucket": ov_bucket,
-        "freight_ratio":      freight_ratio,
-        "item_count":         req.item_count,
-        "is_weekend":         is_weekend,
-        "is_festive_season":  is_festive,
-        "is_first_order":     is_first,
-        "prev_rto_count":     prev_rto,
-        "low_review":         low_review,
-        "installments":       req.installments,
+        "pin_tier":             pin_tier,
+        "is_cod":               req.is_cod,
+        "order_value":          req.order_value,
+        "order_value_bucket":   ov_bucket,
+        "freight_ratio":        freight_ratio,
+        "item_count":           req.item_count,
+        "is_weekend":           is_weekend,
+        "is_festive_season":    is_festive,
+        "is_first_order":       is_first,
+        "prev_rto_count":       prev_rto,
+        "low_review":           low_review,
+        "installments":         req.installments,
+        # Census features — real government data
+        "internet_penetration": census_f["internet_penetration"],
+        "mobile_penetration":   census_f["mobile_penetration"],
+        "cod_risk_score":       census_f["cod_risk_score"],
+        "electricity_access":   census_f["electricity_access"],
     }
     return pd.DataFrame([row])[FEATURES]
 

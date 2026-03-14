@@ -52,18 +52,15 @@ if "installments" not in df.columns:
     df["installments"] = np.where(df["is_cod"] == 1, 1, np.random.choice([1, 2, 3, 6], len(df), p=[0.55, 0.25, 0.15, 0.05]))
 
 FEATURES = [
-    "pin_tier",
-    "is_cod",
-    "order_value",
-    "order_value_bucket",
-    "freight_ratio",
-    "item_count",
-    "is_weekend",
-    "is_festive_season",
-    "is_first_order",
-    "prev_rto_count",
-    "low_review",
-    "installments",
+    # Original features
+    "pin_tier", "is_cod", "order_value", "order_value_bucket",
+    "freight_ratio", "item_count", "is_weekend", "is_festive_season",
+    "is_first_order", "prev_rto_count", "low_review", "installments",
+    # NEW — Census 2011 socioeconomic features
+    "internet_penetration",   # Digital payment adoption signal
+    "mobile_penetration",     # UPI capability signal
+    "cod_risk_score",         # Composite COD risk from Census data
+    "electricity_access",     # Infrastructure quality signal
 ]
 TARGET = "rto_label"
 

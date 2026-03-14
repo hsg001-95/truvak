@@ -2,6 +2,7 @@ import requests
 import os
 from dotenv import load_dotenv
 from datetime import datetime
+import json
 
 load_dotenv()
 
@@ -19,16 +20,33 @@ HEADERS = {
 BASE_URL = f"https://{STORE_URL}/admin/api/{API_VERSION}"
 
 # ── PIN tier lookup ───────────────────────────────────────────────────────────
-PIN_TIER_MAP = {
-    "110": 1, "400": 1, "560": 1, "600": 1, "500": 1, "700": 1,
-    "226": 2, "302": 2, "380": 2, "411": 2, "452": 2, "440": 2,
-    "828": 3, "845": 3, "743": 3, "535": 3, "494": 3, "814": 3,
+# Load full India PIN tier map at startup
+PIN_TIER_JSON_PATH = os.path.join(
+    os.path.dirname(__file__), '..', 'data', 'pin_tier_map.json'
+)
+if os.path.exists(PIN_TIER_JSON_PATH):
+    with open(PIN_TIER_JSON_PATH) as f:
+        FULL_PIN_TIER_MAP = json.load(f)
+    print(f"PIN tier map loaded: {len(FULL_PIN_TIER_MAP):,} PIN codes")
+else:
+    FULL_PIN_TIER_MAP = {}
+    print("WARNING: pin_tier_map.json not found — using prefix fallback")
+
+# Prefix fallback for unknown PINs
+PIN_PREFIX_FALLBACK = {
+    "11": 1, "40": 1, "56": 1, "60": 1, "50": 1, "70": 1,
+    "22": 2, "30": 2, "38": 2, "41": 2, "45": 2, "44": 2,
 }
 
 def get_pin_tier(pin_code: str) -> int:
-    if not pin_code:
-        return 2
-    return PIN_TIER_MAP.get(str(pin_code)[:3], 2)
+    pin = str(pin_code).strip().zfill(6)
+    # Try exact match first
+    if pin in FULL_PIN_TIER_MAP:
+        return int(FULL_PIN_TIER_MAP[pin])
+    # Try prefix fallback
+    prefix = pin[:2]
+    return PIN_PREFIX_FALLBACK.get(prefix, 2)
+
 
 # ── Fetch orders from Shopify ─────────────────────────────────────────────────
 def fetch_orders(limit: int = 50, status: str = "any") -> list:
