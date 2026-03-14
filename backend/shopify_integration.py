@@ -53,20 +53,18 @@ def map_order_to_features(order: dict) -> dict:
     # Payment method → COD proxy
     gateway = str(order.get("gateway", "")).lower()
     payment_method = order.get("payment_gateway_names", [])
-    financial_status = str(order.get("financial_status", "")).lower()
-
+    financial_status  = str(order.get("financial_status", "")).lower()
+    tags              = str(order.get("tags", "")).lower()
+    note              = str(order.get("note", "")).lower()
+    
     is_cod = int(
-        "cod" in gateway or
-        "cash" in gateway or
-        "manual" in gateway or
-        financial_status == "pending" or
-        any(
-            "cod" in p.lower() or
-            "cash" in p.lower() or
-            "manual" in p.lower()
-            for p in payment_method
-        )
-    )
+    financial_status == "pending" or
+    "cod"  in tags  or
+    "cash" in tags  or
+    "cod"  in note  or
+    "cash on delivery" in note
+)
+    
 
     # Customer details
     customer    = order.get("customer") or {}
