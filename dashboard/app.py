@@ -28,14 +28,37 @@ st.set_page_config(
 )
 st.markdown("""
 <style>
-    .stApp { background-color: #0D1117 !important; }
-    .block-container { background-color: #0D1117 !important; }
+    .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+        background-color: #0D1117 !important;
+        color: #E6EDF3 !important;
+    }
+    .block-container { background-color: #0D1117 !important; color: #E6EDF3 !important; }
     section[data-testid="stSidebar"] { background-color: #0F2D5E !important; }
-    .stMarkdown p, .stMarkdown li { color: #E6EDF3 !important; }
-    h1, h2, h3 { color: #E6EDF3 !important; }
+    .stMarkdown p, .stMarkdown li, .stMarkdown span { color: #E6EDF3 !important; }
+    h1, h2, h3, h4, h5, h6 { color: #E6EDF3 !important; }
     .stDataFrame { background: #161B22 !important; }
-    label { color: #E6EDF3 !important; }
-    .stSelectbox label, .stSlider label { color: #E6EDF3 !important; }
+    label, .stSelectbox label, .stSlider label, .stRadio label, .stCheckbox label {
+        color: #E6EDF3 !important;
+    }
+    [data-testid="stExpander"] summary, [data-testid="stExpander"] summary * {
+        color: #E6EDF3 !important;
+    }
+    [data-testid="stTabs"] button, [data-testid="stTabs"] button * {
+        color: #E6EDF3 !important;
+    }
+    .stTextInput input, .stNumberInput input, .stTextArea textarea,
+    .stSelectbox [data-baseweb="select"] > div,
+    .stMultiSelect [data-baseweb="select"] > div,
+    .stDateInput input {
+        background-color: #161B22 !important;
+        color: #E6EDF3 !important;
+        border-color: #30363D !important;
+    }
+    .stDataFrame, .stTable, [data-testid="stMetricValue"], [data-testid="stMetricLabel"],
+    [data-testid="stNotificationContentInfo"], [data-testid="stNotificationContentSuccess"],
+    [data-testid="stNotificationContentWarning"], [data-testid="stNotificationContentError"] {
+        color: #E6EDF3 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 API_URL = "http://127.0.0.1:8000"
@@ -58,7 +81,7 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
     * { font-family: 'Inter', sans-serif; }
-    .main { background: #F0F4F8; }
+    .main { background: #0D1117; color: #E6EDF3; }
     .block-container { padding: 1.5rem 2rem; }
 
     /* Metric cards */
