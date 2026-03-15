@@ -101,7 +101,7 @@ def map_order_to_features(order: dict) -> dict:
     pin_code = (
         shipping.get("zip") or
         billing.get("zip") or
-        "000000"
+        "110001"
     )
 
     # Order value

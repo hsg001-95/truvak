@@ -361,3 +361,12 @@ def get_shopify_orders():
         if "error" not in result:
             results.append(result)
     return {"orders": results, "total": len(results)}
+@app.get("/v1/outcomes/{merchant_id}")
+def get_outcomes(merchant_id: str):
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT * FROM outcomes WHERE merchant_id=? ORDER BY logged_at DESC LIMIT 200",
+        (merchant_id,)
+    ).fetchall()
+    conn.close()
+    return {"outcomes": [dict(r) for r in rows]}
