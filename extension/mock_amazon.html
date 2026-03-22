@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Amazon Seller Central — Order Detail</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #f3f3f3; color: #111; }
+
+    .top-nav {
+      background: #232F3E; padding: 10px 20px;
+      display: flex; align-items: center; gap: 20px;
+    }
+    .logo { color: #FF9900; font-size: 18px; font-weight: bold; }
+    .nav-link { color: #ccc; font-size: 13px; text-decoration: none; }
+
+    .sub-nav {
+      background: #37475A; padding: 8px 20px;
+      display: flex; gap: 20px;
+    }
+    .sub-nav a { color: #ccc; font-size: 12px; text-decoration: none; }
+    .sub-nav a.active { color: white; border-bottom: 2px solid #FF9900; }
+
+    .container { max-width: 1100px; margin: 20px auto; padding: 0 20px; }
+
+    .page-title {
+      font-size: 20px; font-weight: bold;
+      margin-bottom: 16px; color: #0F1111;
+    }
+
+    .order-header {
+      background: white; border: 1px solid #DDD;
+      border-radius: 4px; padding: 16px 20px;
+      margin-bottom: 16px;
+      display: flex; justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .order-id-section h2 {
+      font-size: 16px; color: #0F1111; margin-bottom: 4px;
+    }
+    .order-id {
+      font-size: 18px; font-weight: bold;
+      color: #007185;
+    }
+    .order-date { font-size: 13px; color: #555; margin-top: 4px; }
+
+    .status-badge {
+      background: #067D62; color: white;
+      padding: 6px 14px; border-radius: 4px;
+      font-size: 13px; font-weight: bold;
+    }
+
+    .cards-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px; margin-bottom: 16px;
+    }
+
+    .card {
+      background: white; border: 1px solid #DDD;
+      border-radius: 4px; padding: 16px;
+    }
+    .card-title {
+      font-size: 12px; font-weight: bold;
+      color: #555; text-transform: uppercase;
+      margin-bottom: 10px; letter-spacing: .05em;
+    }
+
+    .shipping-address p { font-size: 13px; line-height: 1.6; color: #0F1111; }
+    .pin-code { font-weight: bold; color: #B12704; }
+
+    .payment-method { font-size: 14px; color: #0F1111; }
+    .payment-cod {
+      display: inline-block; background: #FEF0CD;
+      color: #B45309; padding: 4px 10px;
+      border-radius: 4px; font-weight: bold;
+      margin-top: 6px; font-size: 13px;
+    }
+
+    .order-total { font-size: 22px; font-weight: bold; color: #B12704; }
+    .total-label { font-size: 12px; color: #555; margin-bottom: 4px; }
+
+    .items-card {
+      background: white; border: 1px solid #DDD;
+      border-radius: 4px; margin-bottom: 16px;
+    }
+    .items-header {
+      padding: 12px 16px; border-bottom: 1px solid #EEE;
+      font-size: 14px; font-weight: bold; color: #0F1111;
+    }
+    .item-row {
+      padding: 14px 16px; display: flex;
+      gap: 14px; border-bottom: 1px solid #F5F5F5;
+      align-items: flex-start;
+    }
+    .item-img {
+      width: 60px; height: 60px; background: #F5F5F5;
+      border: 1px solid #DDD; border-radius: 4px;
+      display: flex; align-items: center;
+      justify-content: center; font-size: 24px;
+      flex-shrink: 0;
+    }
+    .item-info { flex: 1; }
+    .item-name { font-size: 13px; color: #007185; margin-bottom: 4px; }
+    .item-sku  { font-size: 11px; color: #888; }
+    .item-qty  { font-size: 12px; color: #555; margin-top: 4px; }
+    .item-price { font-size: 14px; font-weight: bold; color: #0F1111; }
+
+    .buyer-info { font-size: 13px; }
+    .buyer-email { color: #007185; }
+
+    /* Scenario switcher */
+    .scenario-bar {
+      background: #fff3cd; border: 1px solid #ffc107;
+      border-radius: 4px; padding: 10px 16px;
+      margin-bottom: 16px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .scenario-bar label { font-size: 13px; font-weight: bold; color: #856404; }
+    .scenario-bar select {
+      padding: 5px 10px; border-radius: 4px;
+      border: 1px solid #DDD; font-size: 13px;
+    }
+    .scenario-bar button {
+      padding: 5px 14px; background: #FF9900;
+      border: none; border-radius: 4px;
+      font-size: 13px; font-weight: bold;
+      cursor: pointer; color: #111;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Amazon top nav -->
+<div class="top-nav">
+  <div class="logo">amazon seller central</div>
+  <a class="nav-link" href="#">Catalog</a>
+  <a class="nav-link" href="#">Inventory</a>
+  <a class="nav-link" href="#">Orders</a>
+  <a class="nav-link" href="#">Advertising</a>
+  <a class="nav-link" href="#">Reports</a>
+</div>
+<div class="sub-nav">
+  <a href="#">Manage Orders</a>
+  <a href="#" class="active">Order Detail</a>
+  <a href="#">Upload Order Related Files</a>
+</div>
+
+<div class="container">
+  <div class="page-title">Order Details</div>
+
+  <!-- Scenario switcher (testing helper) -->
+  <div class="scenario-bar">
+    <label>🧪 Test Scenario:</label>
+    <select id="scenarioSelect">
+      <option value="high">🔴 HIGH RISK — COD, Tier-3 PIN, high value</option>
+      <option value="medium">🟡 MEDIUM RISK — COD, Tier-2 PIN</option>
+      <option value="low">🟢 LOW RISK — Prepaid, Tier-1 PIN</option>
+    </select>
+    <button onclick="loadScenario()">Load Scenario</button>
+  </div>
+
+  <!-- Order header -->
+  <div class="order-header">
+    <div class="order-id-section">
+      <h2>Order ID</h2>
+      <div class="order-id" id="displayOrderId">402-8765432-1234567</div>
+      <div class="order-date">Order placed: March 15, 2026</div>
+    </div>
+    <div class="status-badge">Pending</div>
+  </div>
+
+  <!-- Cards row -->
+  <div class="cards-row">
+
+    <!-- Shipping address -->
+    <div class="card">
+      <div class="card-title">Ship to</div>
+      <div class="shipping-address">
+        <p id="buyerName"><b>Rajesh Kumar</b></p>
+        <p>Village Ramdih, Near Water Tank</p>
+        <p>Dist. Dhanbad</p>
+        <p>Jharkhand</p>
+        <p class="pin-code" id="displayPin">828001</p>
+        <p>India</p>
+      </div>
+    </div>
+
+    <!-- Payment -->
+    <div class="card">
+      <div class="card-title">Payment Method</div>
+      <div class="payment-method">
+        <div id="paymentDisplay">
+          <div class="payment-cod" id="codBadge">Cash on Delivery (COD)</div>
+        </div>
+        <div style="margin-top:10px;font-size:12px;color:#555;">
+          Buyer email: <span class="buyer-email" id="buyerEmail">rajesh.kumar@example.com</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Order total -->
+    <div class="card">
+      <div class="card-title">Order Summary</div>
+      <div class="total-label">Order Total</div>
+      <div class="order-total" id="displayTotal">₹3,200.00</div>
+      <div style="margin-top:8px;font-size:12px;color:#555;">
+        Items: <span id="displayItems">2</span> &nbsp;|&nbsp;
+        Shipping: ₹0.00
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Items -->
+  <div class="items-card">
+    <div class="items-header" id="itemsHeader">2 Items in this order</div>
+    <div class="item-row">
+      <div class="item-img">👟</div>
+      <div class="item-info">
+        <div class="item-name" id="item1name">Sports Running Shoes - Size 9</div>
+        <div class="item-sku">SKU: SHOES-RUN-BLK-9</div>
+        <div class="item-qty">Quantity: <span id="item1qty">1</span></div>
+      </div>
+      <div class="item-price" id="item1price">₹1,800.00</div>
+    </div>
+    <div class="item-row">
+      <div class="item-img">👕</div>
+      <div class="item-info">
+        <div class="item-name">Polo T-Shirt — Pack of 3</div>
+        <div class="item-sku">SKU: TSHIRT-POLO-M-3PK</div>
+        <div class="item-qty">Quantity: 1</div>
+      </div>
+      <div class="item-price">₹1,400.00</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const SCENARIOS = {
+  high: {
+    orderId:   '402-8765432-1234567',
+    buyerName: 'Rajesh Kumar',
+    pin:       '828001',
+    total:     '₹3,200.00',
+    items:     '2',
+    payment:   'cod',
+    email:     'rajesh.kumar@example.com',
+    itemName:  'Sports Running Shoes - Size 9',
+    itemPrice: '₹1,800.00',
+    itemQty:   '1',
+    header:    '2 Items — HIGH RISK scenario',
+  },
+  medium: {
+    orderId:   '408-1234567-9876543',
+    buyerName: 'Priya Sharma',
+    pin:       '226001',
+    total:     '₹1,200.00',
+    items:     '1',
+    payment:   'cod',
+    email:     'priya.sharma@example.com',
+    itemName:  'Bluetooth Earphones',
+    itemPrice: '₹1,200.00',
+    itemQty:   '1',
+    header:    '1 Item — MEDIUM RISK scenario',
+  },
+  low: {
+    orderId:   '405-9999999-1111111',
+    buyerName: 'Ananya Iyer',
+    pin:       '560001',
+    total:     '₹650.00',
+    items:     '1',
+    payment:   'prepaid',
+    email:     'ananya.iyer@example.com',
+    itemName:  'Phone Case — iPhone 15',
+    itemPrice: '₹650.00',
+    itemQty:   '1',
+    header:    '1 Item — LOW RISK scenario',
+  }
+};
+
+function loadScenario() {
+  const key = document.getElementById('scenarioSelect').value;
+  const s   = SCENARIOS[key];
+
+  document.getElementById('displayOrderId').textContent = s.orderId;
+  document.getElementById('displayPin').textContent     = s.pin;
+  document.getElementById('displayTotal').textContent   = s.total;
+  document.getElementById('displayItems').textContent   = s.items;
+  document.getElementById('buyerEmail').textContent     = s.email;
+  document.getElementById('buyerName').innerHTML        = `<b>${s.buyerName}</b>`;
+  document.getElementById('item1name').textContent      = s.itemName;
+  document.getElementById('item1price').textContent     = s.itemPrice;
+  document.getElementById('item1qty').textContent       = s.itemQty;
+  document.getElementById('itemsHeader').textContent    = `${s.items} Item(s) — ${key.toUpperCase()} RISK scenario`;
+
+  const codBadge = document.getElementById('codBadge');
+  if (s.payment === 'cod') {
+    codBadge.style.display = 'inline-block';
+    codBadge.textContent   = 'Cash on Delivery (COD)';
+  } else {
+    codBadge.style.display = 'inline-block';
+    codBadge.style.background = '#d4edda';
+    codBadge.style.color      = '#155724';
+    codBadge.textContent      = '✅ Prepaid — UPI / Card';
+  }
+}
+</script>
+</body>
+</html>

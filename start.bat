@@ -7,12 +7,12 @@ echo  ╚═══════════════════════�
 echo.
 
 echo  [1/3] Starting FastAPI backend on port 8000...
-start "Trust API" cmd /k "cd /d %~dp0 && venv\Scripts\activate && uvicorn backend.main:app --reload --port 8000"
+start "Trust API" cmd /k "cd /d %~dp0 && venv\Scripts\python.exe -m uvicorn backend.main:app --reload --port 8000"
 
 timeout /t 3 /nobreak > nul
 
 echo  [2/3] Starting Streamlit dashboard on port 8501...
-start "Trust Dashboard" cmd /k "cd /d %~dp0 && venv\Scripts\activate && streamlit run dashboard/app.py"
+start "Trust Dashboard" cmd /k "cd /d %~dp0 && venv\Scripts\python.exe -m streamlit run dashboard/app.py"
 
 timeout /t 2 /nobreak > nul
 

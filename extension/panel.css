@@ -1,0 +1,237 @@
+/* Trust Intelligence Platform — Panel Styles */
+
+#tip-panel {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  width: 320px;
+  background: #0F172A;
+  border: 1px solid #1E293B;
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  z-index: 999999;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  color: #E2E8F0;
+  transition: all 0.25s ease;
+}
+
+#tip-panel.tip-collapsed {
+  height: 48px;
+  overflow: hidden;
+  border-radius: 24px;
+  width: 220px;
+  cursor: pointer;
+}
+
+#tip-header {
+  background: #1E293B;
+  padding: 12px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 14px 14px 0 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+#tip-panel.tip-collapsed #tip-header {
+  border-radius: 24px;
+}
+
+#tip-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  color: #E2E8F0;
+}
+
+#tip-header-left span {
+  font-size: 16px;
+}
+
+#tip-toggle-btn {
+  font-size: 11px;
+  color: #64748B;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #94A3B8;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+#tip-toggle-btn:hover {
+  background: #334155;
+  color: #E2E8F0;
+}
+
+#tip-body {
+  padding: 14px;
+}
+
+/* Score circle */
+#tip-score-section {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+  padding: 12px;
+  background: #1E293B;
+  border-radius: 10px;
+}
+
+#tip-score-circle {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  flex-shrink: 0;
+  border: 3px solid;
+}
+
+#tip-score-circle.tip-low    { border-color: #22C55E; color: #22C55E; background: #052e16; }
+#tip-score-circle.tip-medium { border-color: #F59E0B; color: #F59E0B; background: #1c1003; }
+#tip-score-circle.tip-high   { border-color: #EF4444; color: #EF4444; background: #1f0707; }
+
+#tip-score-number { font-size: 22px; line-height: 1; }
+#tip-score-label  { font-size: 9px;  line-height: 1; margin-top: 2px; opacity: 0.8; }
+
+#tip-score-info { flex: 1; }
+#tip-risk-level {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+#tip-risk-level.tip-low    { color: #22C55E; }
+#tip-risk-level.tip-medium { color: #F59E0B; }
+#tip-risk-level.tip-high   { color: #EF4444; }
+
+#tip-rto-prob {
+  font-size: 11px;
+  color: #94A3B8;
+}
+
+/* Action button */
+#tip-action {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 12px;
+  transition: opacity 0.2s;
+}
+#tip-action:hover { opacity: 0.85; }
+#tip-action.tip-approve    { background: #166534; color: #4ADE80; }
+#tip-action.tip-warn       { background: #1c1003; color: #F59E0B; border: 1px solid #F59E0B; }
+#tip-action.tip-block-cod  { background: #DC2626; color: white; }
+#tip-action.tip-flag       { background: #1E3A5F; color: #60A5FA; }
+
+/* Factors */
+#tip-factors-title {
+  font-size: 11px;
+  color: #64748B;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-bottom: 8px;
+}
+
+.tip-factor {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid #1E293B;
+  font-size: 12px;
+  color: #CBD5E1;
+}
+
+.tip-factor:last-child { border-bottom: none; }
+
+.tip-factor-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+.tip-factor-dot.red    { background: #EF4444; }
+.tip-factor-dot.amber  { background: #F59E0B; }
+.tip-factor-dot.green  { background: #22C55E; }
+
+/* Fired rules */
+#tip-rules {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: #1E293B;
+  border-radius: 8px;
+  font-size: 11px;
+  color: #F59E0B;
+}
+
+/* Override button */
+#tip-override {
+  margin-top: 10px;
+  width: 100%;
+  padding: 7px;
+  background: transparent;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  color: #64748B;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+#tip-override:hover {
+  border-color: #64748B;
+  color: #94A3B8;
+}
+
+/* Loading state */
+#tip-loading {
+  text-align: center;
+  padding: 20px;
+  color: #64748B;
+}
+
+.tip-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #1E293B;
+  border-top-color: #3B82F6;
+  border-radius: 50%;
+  animation: tip-spin 0.8s linear infinite;
+  margin-bottom: 8px;
+}
+
+@keyframes tip-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Error state */
+#tip-error {
+  text-align: center;
+  padding: 16px;
+  color: #EF4444;
+  font-size: 12px;
+}
+
+/* Hashed ID */
+#tip-privacy {
+  margin-top: 10px;
+  font-size: 10px;
+  color: #334155;
+  text-align: center;
+  word-break: break-all;
+}
