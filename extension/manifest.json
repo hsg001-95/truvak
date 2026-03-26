@@ -27,20 +27,12 @@
       "matches": [
         "https://sellercentral.amazon.in/*",
         "https://sellercentral.amazon.com/*",
-        "http://localhost:8080/*",
-        "http://127.0.0.1:8080/*"
+        "https://seller.flipkart.com/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*"
       ],
       "js": [
         "content_amazon.js"
-      ],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": [
-        "https://seller.flipkart.com/*"
-      ],
-      "js": [
-        "content_flipkart.js"
       ],
       "run_at": "document_idle"
     }

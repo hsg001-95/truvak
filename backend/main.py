@@ -3,6 +3,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fastapi import FastAPI, HTTPException, Header
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional, List
 import pickle
@@ -44,6 +45,21 @@ app = FastAPI(
     title="Trust Intelligence Platform API",
     description="RTO risk scoring for marketplace sellers",
     version="0.1.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://127.0.0.1:8080",
+        "http://localhost:8080",
+        "https://sellercentral.amazon.in",
+        "https://sellercentral.amazon.com",
+        "https://seller.flipkart.com",
+        "chrome-extension://*",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # ── Load model on startup ─────────────────────────────────────────────────────
