@@ -370,3 +370,130 @@ def get_outcomes(merchant_id: str):
     ).fetchall()
     conn.close()
     return {"outcomes": [dict(r) for r in rows]}
+@app.get("/v1/buyer/history/{hashed_buyer_id}/{merchant_id}")
+def get_buyer_history(hashed_buyer_id: str, merchant_id: str):
+    conn = get_connection()
+
+    # All orders for this buyer under this merchant
+    orders = conn.execute("""
+        SELECT order_id, score, risk_level, recommended_action,
+               order_value, is_cod, created_at
+        FROM trust_scores
+        WHERE hashed_buyer_id=? AND merchant_id=?
+        ORDER BY created_at DESC
+    """, (hashed_buyer_id, merchant_id)).fetchall()
+
+    # Outcomes logged for this buyer
+    outcomes = conn.execute("""
+        SELECT result, logged_at
+        FROM outcomes
+        WHERE hashed_buyer_id=? AND merchant_id=?
+        ORDER BY logged_at DESC
+    """, (hashed_buyer_id, merchant_id)).fetchall()
+
+    conn.close()
+
+    total_orders  = len(orders)
+    rto_count     = sum(1 for o in outcomes if o["result"] == "rto")
+    return_count  = sum(1 for o in outcomes if o["result"] == "return")
+    delivered     = sum(1 for o in outcomes if o["result"] == "delivered")
+    avg_score     = round(
+        sum(o["score"] for o in orders) / total_orders, 1
+    ) if total_orders else 0
+    high_risk     = sum(1 for o in orders if o["risk_level"] == "HIGH")
+    blocked       = sum(
+        1 for o in orders if o["recommended_action"] == "block_cod"
+    )
+
+    # Risk profile
+    if rto_count >= 2:
+        profile = "⚠️ Serial RTO Buyer"
+    elif rto_count == 1:
+        profile = "⚡ Previous RTO — Caution"
+    elif total_orders >= 3 and avg_score >= 70:
+        profile = "✅ Trusted Repeat Buyer"
+    elif total_orders == 0:
+        profile = "🆕 First Time Buyer"
+    else:
+        profile = "📦 Regular Buyer"
+
+    return {
+        "hashed_buyer_id": hashed_buyer_id,
+        "total_orders":    total_orders,
+        "rto_count":       rto_count,
+        "return_count":    return_count,
+        "delivered_count": delivered,
+        "avg_score":       avg_score,
+        "high_risk_count": high_risk,
+        "blocked_count":   blocked,
+        "risk_profile":    profile,
+        "recent_orders":   [dict(o) for o in orders[:5]],
+    }
+
+
+@app.get("/v1/area/intelligence/{pin_code}")
+def get_area_intelligence(pin_code: str):
+    import json as json_lib
+
+    # Load Census PIN feature map
+    pin_feature_path = os.path.join(
+        os.path.dirname(__file__), '..', 'data', 'pin_feature_map.json'
+    )
+    pin_tier_path = os.path.join(
+        os.path.dirname(__file__), '..', 'data', 'pin_tier_map.json'
+    )
+
+    features = {}
+    tier     = 2  # default
+
+    if os.path.exists(pin_feature_path):
+        with open(pin_feature_path) as f:
+            pin_map = json_lib.load(f)
+        features = pin_map.get(str(pin_code).zfill(6), {})
+
+    if os.path.exists(pin_tier_path):
+        with open(pin_tier_path) as f:
+            tier_map = json_lib.load(f)
+        tier = tier_map.get(str(pin_code).zfill(6), 2)
+
+    # Derive area stats from Census features
+    internet  = features.get("internet_penetration", 0.008)
+    mobile    = features.get("mobile_penetration",   0.386)
+    cod_risk  = features.get("cod_risk_score",       0.79)
+    urban     = features.get("urban_ratio",          0.21)
+    electric  = features.get("electricity_access",   0.51)
+
+    # Area RTO rate estimate based on tier
+    area_rto_rate = {1: 0.12, 2: 0.24, 3: 0.38}.get(tier, 0.24)
+
+    # COD preference estimate
+    cod_preference = {1: 0.35, 2: 0.55, 3: 0.70}.get(tier, 0.55)
+
+    # Tier label
+    tier_label = {
+        1: "Tier 1 — Metro",
+        2: "Tier 2 — Mid City",
+        3: "Tier 3 — Rural/Remote"
+    }.get(tier, "Tier 2")
+
+    # Risk label
+    if tier == 1:
+        area_risk = "Low Risk Zone"
+    elif tier == 2:
+        area_risk = "Medium Risk Zone"
+    else:
+        area_risk = "High Risk Zone"
+
+    return {
+        "pin_code":          pin_code,
+        "tier":              tier,
+        "tier_label":        tier_label,
+        "area_risk":         area_risk,
+        "area_rto_rate":     round(area_rto_rate * 100, 1),
+        "cod_preference":    round(cod_preference * 100, 1),
+        "internet_pct":      round(internet * 100, 1),
+        "mobile_pct":        round(mobile * 100, 1),
+        "urban_pct":         round(urban * 100, 1),
+        "electricity_pct":   round(electric * 100, 1),
+        "cod_risk_score":    round(cod_risk, 3),
+    }
