@@ -9,10 +9,16 @@ class Rule:
     condition_operator: str     # "lt", "gt", "lte", "gte", "eq"
     condition_value: float
     action: str                 # "block_cod", "warn", "approve", "flag_review"
+    cod_only: Optional[bool] = None
     is_active: bool = True
 
     def evaluate(self, score: float, order: dict) -> bool:
         """Returns True if this rule's condition is met."""
+        if self.cod_only is True and int(order.get("is_cod", 0)) != 1:
+            return False
+        if self.cod_only is False and int(order.get("is_cod", 0)) != 0:
+            return False
+
         field_map = {
             "score":       score,
             "order_value": order.get("order_value", 0),
@@ -49,21 +55,24 @@ class RuleEngine:
                 rule_name="Block COD - High Risk",
                 condition_field="score",
                 condition_operator="lt",
-                condition_value=40.0,
+                condition_value=35.0,
+                cod_only=True,
                 action="block_cod"
             ),
             Rule(
                 rule_name="Warn - Medium Risk COD",
                 condition_field="score",
                 condition_operator="lt",
-                condition_value=60.0,
+                condition_value=52.0,
+                cod_only=True,
                 action="warn"
             ),
             Rule(
                 rule_name="Flag Large COD Orders",
                 condition_field="order_value",
                 condition_operator="gt",
-                condition_value=2000.0,
+                condition_value=3000.0,
+                cod_only=True,
                 action="flag_review"
             ),
         ]
@@ -110,6 +119,7 @@ class RuleEngine:
                 "condition_operator": r.condition_operator,
                 "condition_value":    r.condition_value,
                 "action":             r.action,
+                "cod_only":           r.cod_only,
                 "is_active":          r.is_active,
             }
             for r in self.rules

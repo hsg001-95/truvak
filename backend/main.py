@@ -233,13 +233,15 @@ def score_order(req: ScoreRequest):
     rto_prob = float(MODEL.predict_proba(X)[0][1])
 
     # 4. Convert RTO probability → Trust Score (0-100)
-    # Higher RTO prob = lower trust score
-    score = round((1 - rto_prob) * 100, 1)
+    # Apply mild calibration to reduce cold-start over-penalization.
+    raw_score = (1 - rto_prob) * 100
+    calibrated_score = (raw_score * 0.9) + 8
+    score = round(float(np.clip(calibrated_score, 0, 100)), 1)
 
     # 5. Risk level classification
-    if score >= 70:
+    if score >= 65:
         risk_level = "LOW"
-    elif score >= 40:
+    elif score >= 42:
         risk_level = "MEDIUM"
     else:
         risk_level = "HIGH"

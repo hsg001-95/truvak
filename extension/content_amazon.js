@@ -12,6 +12,11 @@ let sidebarInjected  = false;
 let currentOrderId   = null;
 let currentHashedId  = null;
 let isCollapsed      = false;
+let isScoringInFlight = false;
+let isSummaryInFlight = false;
+let lastSummaryAt     = 0;
+let currentViewMode   = 'init';
+let extensionEnabled  = false;
 
 // ── Site config — universal pattern matching ──────────────────────────────────
 const SITE_CONFIGS = {
@@ -32,16 +37,51 @@ function getSiteConfig() {
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-function init() {
+async function init() {
   const config = getSiteConfig();
   if (!config || config.role !== 'merchant') return;
+
+  await loadRuntimeConfig();
+  if (!extensionEnabled) {
+    console.log('[TIP] Extension disabled until sign-in toggle is enabled in popup');
+    return;
+  }
 
   console.log(`[TIP] Activated on ${config.platform}`);
   injectSidebarStyles();
   injectSidebar(config.platform);
   observePageChanges();
 
-  setTimeout(tryExtractAndScore, 1500);
+  setTimeout(tryExtractAndScore, 900);
+}
+
+async function loadRuntimeConfig() {
+  if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) return;
+
+  const cfg = await new Promise((resolve) => {
+    chrome.storage.local.get(
+      ['apiUrl', 'merchantId', 'extensionEnabled'],
+      resolve
+    );
+  });
+
+  TIP_CONFIG.apiUrl = cfg.apiUrl || TIP_CONFIG.apiUrl;
+  TIP_CONFIG.merchantId = cfg.merchantId || TIP_CONFIG.merchantId;
+  extensionEnabled = !!cfg.extensionEnabled;
+}
+
+function isLoggedInSellerPage() {
+  const host = window.location.hostname;
+  const isLocalMock = host.includes('localhost') || host.includes('127.0.0.1');
+
+  if (!isLocalMock) return true;
+
+  const loginPage = document.getElementById('login-page');
+  const appLayout = document.getElementById('app-layout');
+
+  if (loginPage && loginPage.classList.contains('active')) return false;
+  if (appLayout && (appLayout.style.display === 'none' || !appLayout.offsetParent)) return false;
+  return true;
 }
 
 // ── Inject sidebar CSS into page ──────────────────────────────────────────────
@@ -443,47 +483,75 @@ function observePageChanges() {
   }).observe(document.body, { childList: true, subtree: true });
 }
 
+function isOrderDetailUrl(url = window.location.href) {
+  return (
+    url.includes('/order-detail') ||
+    url.includes('orderID=') ||
+    url.includes('/orders/') ||
+    url.includes('order.html')
+  );
+}
+
 // ── Extract order data ────────────────────────────────────────────────────────
 function extractOrderData() {
   const text = document.body.innerText || '';
   const url  = window.location.href;
 
-  // Detect order page
-  const isOrderPage = (
-    url.includes('/order') ||
-    url.includes('order-detail') ||
-    url.includes('orderID') ||
-    /\d{3}-\d{7}-\d{7}/.test(text) ||
-    /OD-\d{10,}/.test(text)
-  );
-  if (!isOrderPage) return null;
+  // Detect order detail page specifically
+  const isOrderDetailPage = isOrderDetailUrl(url);
+  if (!isOrderDetailPage) return null;
 
-  // Order ID — Amazon or Flipkart format
+  // Order ID
   let orderId = null;
-  const amzMatch  = text.match(/\d{3}-\d{7}-\d{7}/);
-  const fkMatch   = text.match(/OD-\d{10,}/);
+  const amzMatch = text.match(/\d{3}-\d{7}-\d{7}/);
+  const fkMatch  = text.match(/OD-\d{10,}/);
   if (amzMatch) orderId = amzMatch[0];
   else if (fkMatch) orderId = fkMatch[0];
   if (!orderId) return null;
 
-  // Order value
+  // Order value — look for Rs/INR patterns near total keywords first
   let orderValue = 1000;
   const valuePatterns = [
-    /(?:Order Total|Grand Total|Total Amount|Total)[:\s]*₹?\s*([0-9,]+\.?[0-9]*)/i,
-    /₹\s*([0-9,]+\.?[0-9]*)/,
+    /(?:Order Total|Grand Total|Total Amount)[^\n]*?₹\s*([0-9,]+)/i,
+    /(?:Order Total|Grand Total|Total Amount)[^\n]*?Rs\.?\s*([0-9,]+)/i,
+    /₹\s*([0-9,]+\.[0-9]{2})/,
   ];
   for (const p of valuePatterns) {
     const m = text.match(p);
-    if (m) { orderValue = parseFloat(m[1].replace(/,/g, '')); break; }
+    if (m) {
+      const val = parseFloat(m[1].replace(/,/g, ''));
+      if (val > 0 && val < 200000) {
+        orderValue = val;
+        break;
+      }
+    }
   }
 
-  // PIN code
+  // PIN code — search near address block to avoid false matches
   let pinCode = '110001';
-  const pins  = text.match(/\b([1-9][0-9]{5})\b/g);
-  if (pins && pins.length > 0) pinCode = pins[0];
+  const addressSection = text.match(
+    /(?:ship to|shipping address|deliver to|delivery address)([\s\S]{0,400})/i
+  );
+  const searchText = addressSection ? addressSection[1] : text;
+  const pinMatches = searchText.match(/\b([1-9][0-9]{5})\b/g);
+  if (pinMatches) {
+    const validPin = pinMatches.find((p) => {
+      const n = parseInt(p, 10);
+      return n >= 110001 && n <= 855126;
+    });
+    if (validPin) pinCode = validPin;
+  }
 
-  // COD detection
-  const isCod = /cash on delivery|COD|pay on delivery/i.test(text) ? 1 : 0;
+  // COD detection — rely on payment section first
+  const paymentSection = text.match(
+    /(?:payment method|payment type|pay with|paid via)([\s\S]{0,200})/i
+  );
+  const payText = paymentSection ? paymentSection[1].toLowerCase() : '';
+  const isCod = (
+    /cash on delivery|cod|pay on delivery/.test(payText) ||
+    (/cash on delivery|pay on delivery/i.test(text) &&
+      !(/paid|prepaid|upi|card|netbanking/i.test(payText)))
+  ) ? 1 : 0;
 
   // Buyer identifier
   let buyerId = orderId;
@@ -492,8 +560,8 @@ function extractOrderData() {
 
   // Item count
   let itemCount = 1;
-  const itemMatch = text.match(/(\d+)\s+(?:item|product)/i);
-  if (itemMatch) itemCount = parseInt(itemMatch[1]);
+  const itemMatch = text.match(/(\d+)\s+(?:item|product)s?/i);
+  if (itemMatch) itemCount = Math.min(parseInt(itemMatch[1], 10), 20);
 
   return {
     order_id:     orderId,
@@ -537,28 +605,185 @@ async function getAreaIntelligence(pinCode) {
 
 // ── Main flow ─────────────────────────────────────────────────────────────────
 async function tryExtractAndScore() {
+  if (!extensionEnabled) return;
+
+  if (!isLoggedInSellerPage()) {
+    currentOrderId = null;
+    currentHashedId = null;
+    return;
+  }
+
+  const onOrderUrl = isOrderDetailUrl();
   const orderData = extractOrderData();
-  if (!orderData) return;
-  if (orderData.order_id === currentOrderId) return;
+
+  if (!orderData) {
+    currentOrderId = null;
+    currentHashedId = null;
+
+    if (onOrderUrl) {
+      if (currentViewMode !== 'order-detecting') {
+        showLoading('order details');
+        currentViewMode = 'order-detecting';
+      }
+      return;
+    }
+
+    await showMerchantSummary();
+    return;
+  }
+
+  if (isScoringInFlight) return;
+  if (orderData.order_id === currentOrderId && currentViewMode === 'order') return;
 
   currentOrderId = orderData.order_id;
   showLoading(orderData.order_id);
+  currentViewMode = 'order-loading';
+  isScoringInFlight = true;
 
   try {
-    // Score + buyer history + area intel in parallel
     const [scoreResult, areaResult] = await Promise.all([
       scoreOrder(orderData),
       getAreaIntelligence(orderData.pin_code),
     ]);
 
     currentHashedId = scoreResult.hashed_buyer_id;
-
-    // Fetch buyer history after we have the hashed ID
     const historyResult = await getBuyerHistory(currentHashedId);
-
     renderSidebar(scoreResult, historyResult, areaResult, orderData);
+    currentViewMode = 'order';
   } catch (err) {
     showError(err.message);
+    currentViewMode = 'error';
+  } finally {
+    isScoringInFlight = false;
+  }
+}
+
+async function showMerchantSummary() {
+  const content = document.getElementById('tip-sb-content');
+  if (!content) return;
+
+  if (isSummaryInFlight) return;
+  if (Date.now() - lastSummaryAt < 15000 && currentViewMode === 'summary') return;
+
+  isSummaryInFlight = true;
+  currentViewMode = 'summary-loading';
+
+  content.innerHTML = `
+    <div class="tip-loading">
+      <div class="tip-spinner"></div>
+      <div>Loading merchant data...</div>
+    </div>
+  `;
+
+  try {
+    const r = await fetch(
+      `${TIP_CONFIG.apiUrl}/v1/scores/${TIP_CONFIG.merchantId}?limit=200`
+    );
+    if (!r.ok) throw new Error('No data');
+    const data = await r.json();
+    const orders = data.orders || [];
+
+    if (orders.length === 0) {
+      content.innerHTML = `
+        <div class="tip-section">
+          <div class="tip-section-title">Merchant Summary</div>
+          <div style="text-align:center;padding:20px;color:#64748B;font-size:12px;">
+            No orders scored yet.<br>Open an order page to begin.
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    const total = orders.length;
+    const blocked = orders.filter((o) => o.recommended_action === 'block_cod').length;
+    const highRisk = orders.filter((o) => o.risk_level === 'HIGH').length;
+    const avgScore = (orders.reduce((s, o) => s + o.score, 0) / total).toFixed(1);
+    const totalSales = orders.reduce((s, o) => s + (o.order_value || 0), 0);
+    const saved = blocked * 300;
+    const codOrders = orders.filter((o) => o.is_cod === 1).length;
+
+    content.innerHTML = `
+      <div class="tip-section">
+        <div class="tip-section-title">Merchant Summary</div>
+        <div class="tip-stat-grid">
+          <div class="tip-stat-box">
+            <div class="tip-stat-val good">${total}</div>
+            <div class="tip-stat-lbl">Orders Scored</div>
+          </div>
+          <div class="tip-stat-box">
+            <div class="tip-stat-val">${avgScore}</div>
+            <div class="tip-stat-lbl">Avg Trust Score</div>
+          </div>
+          <div class="tip-stat-box">
+            <div class="tip-stat-val danger">${highRisk}</div>
+            <div class="tip-stat-lbl">High Risk</div>
+          </div>
+          <div class="tip-stat-box">
+            <div class="tip-stat-val danger">${blocked}</div>
+            <div class="tip-stat-lbl">COD Blocked</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tip-section">
+        <div class="tip-section-title">Financial Impact</div>
+        <div class="tip-area-row">
+          <span class="tip-area-label">Total Sales Scored</span>
+          <span class="tip-area-val">₹${totalSales.toLocaleString('en-IN')}</span>
+        </div>
+        <div class="tip-area-row">
+          <span class="tip-area-label">Estimated Savings</span>
+          <span class="tip-area-val good">₹${saved.toLocaleString('en-IN')}</span>
+        </div>
+        <div class="tip-area-row">
+          <span class="tip-area-label">COD Orders</span>
+          <span class="tip-area-val">${codOrders} of ${total}</span>
+        </div>
+        <div class="tip-area-row">
+          <span class="tip-area-label">RTO Prevention</span>
+          <span class="tip-area-val good">${((blocked / total) * 100).toFixed(0)}%</span>
+        </div>
+      </div>
+
+      <div class="tip-section">
+        <div class="tip-section-title">Risk Breakdown</div>
+        <div class="tip-area-row">
+          <span class="tip-area-label">🔴 High Risk</span>
+          <span class="tip-area-val danger">${highRisk} orders</span>
+        </div>
+        <div class="tip-area-row">
+          <span class="tip-area-label">🟡 Medium Risk</span>
+          <span class="tip-area-val warn">
+            ${orders.filter((o) => o.risk_level === 'MEDIUM').length} orders
+          </span>
+        </div>
+        <div class="tip-area-row">
+          <span class="tip-area-label">🟢 Low Risk</span>
+          <span class="tip-area-val good">
+            ${orders.filter((o) => o.risk_level === 'LOW').length} orders
+          </span>
+        </div>
+      </div>
+
+      <div style="font-size:11px;color:#475569;text-align:center;padding:8px 0;">
+        Open an order to see trust score
+      </div>
+    `;
+    currentViewMode = 'summary';
+  } catch {
+    content.innerHTML = `
+      <div class="tip-section">
+        <div class="tip-section-title">Merchant Summary</div>
+        <div style="text-align:center;padding:16px;color:#64748B;font-size:11px;">
+          Open an order to start scoring
+        </div>
+      </div>
+    `;
+    currentViewMode = 'summary';
+  } finally {
+    lastSummaryAt = Date.now();
+    isSummaryInFlight = false;
   }
 }
 
