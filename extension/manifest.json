@@ -5,16 +5,12 @@
   "description": "Risk intelligence sidebar for seller order review.",
   "permissions": [
     "storage",
-    "activeTab",
-    "scripting"
+    "activeTab"
   ],
   "host_permissions": [
     "http://127.0.0.1:8000/*",
     "http://localhost:8000/*"
   ],
-  "background": {
-    "service_worker": "background.js"
-  },
   "action": {
     "default_title": "Trust Intelligence Platform",
     "default_popup": "popup.html"

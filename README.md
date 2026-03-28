@@ -29,6 +29,11 @@ The **Trust Intelligence Platform** evaluates incoming e-commerce orders (Amazon
 | 🔬 **Model Insights** | In-depth explanations of the underlying ML logic, including feature importance and AUC-ROC curve. |
 | 🔗 **Shopify Integration** | Sync live orders directly from your Shopify store and generate risk assessments seamlessly. |
 
+## 🧭 Active Integration Scope
+
+- ✅ Active: FastAPI backend (`/v1/*`) + Streamlit dashboard + Amazon content script flow.
+- ⚠️ Placeholder only: Flipkart content script (`extension/content_flipkart.js`) is intentionally Phase 2 and not part of the active runtime path.
+
 <br/>
 
 ## 🏗️ Architecture Stack

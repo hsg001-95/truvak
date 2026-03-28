@@ -47,16 +47,24 @@ app = FastAPI(
     version="0.1.0"
 )
 
+EXTENSION_ORIGIN = os.getenv("EXTENSION_ORIGIN", "").strip()
+
+allow_origins = [
+    "http://127.0.0.1:8080",
+    "http://localhost:8080",
+    "http://127.0.0.1:8501",
+    "http://localhost:8501",
+    "https://sellercentral.amazon.in",
+    "https://sellercentral.amazon.com",
+    "https://seller.flipkart.com",
+]
+
+if EXTENSION_ORIGIN.startswith("chrome-extension://"):
+    allow_origins.append(EXTENSION_ORIGIN)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://127.0.0.1:8080",
-        "http://localhost:8080",
-        "https://sellercentral.amazon.in",
-        "https://sellercentral.amazon.com",
-        "https://seller.flipkart.com",
-        "chrome-extension://*",
-    ],
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -133,6 +141,11 @@ class OutcomeRequest(BaseModel):
     merchant_id:    str
     raw_buyer_id:   str
     result:         str  # "delivered", "rto", "return"
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
 
 # ── Helper: build feature vector ──────────────────────────────────────────────
 def build_features(req: ScoreRequest, pin_tier: int,
@@ -328,14 +341,63 @@ def update_cod_threshold(merchant_id: str, threshold: float):
         if rule.rule_name == "Block COD - High Risk":
             rule.condition_value = threshold
     return {"status": "updated", "new_threshold": threshold}
-@app.post("/v1/rules/{merchant_id}/threshold")
-def update_cod_threshold(merchant_id: str, threshold: float):
-    if not (0 <= threshold <= 100):
-        raise HTTPException(400, "Threshold must be between 0 and 100")
-    for rule in engine.rules:
-        if rule.rule_name == "Block COD - High Risk":
-            rule.condition_value = threshold
-    return {"status": "updated", "new_threshold": threshold}
+
+
+@app.post("/v1/login")
+def login(req: LoginRequest):
+    # Demo-only auth endpoint retained for legacy popup/react callers.
+    demo_users = {
+        "merchant_amazon": "Trust@2024",
+        "merchant_flipkart": "Trust@2024",
+        "merchant_shopify": "Trust@2024",
+    }
+    if demo_users.get(req.username) != req.password:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    return {
+        "message": "Login successful",
+        "token": req.username,
+        "merchant_id": req.username,
+    }
+
+
+@app.get("/v1/orders")
+def get_orders(authorization: Optional[str] = Header(default=None)):
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
+
+    token = authorization.split(" ", 1)[1].strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    merchant_id = token
+    conn = get_connection()
+    rows = conn.execute(
+        """
+        SELECT order_id, score, risk_level
+        FROM trust_scores
+        WHERE merchant_id = ?
+        ORDER BY created_at DESC
+        LIMIT 100
+        """,
+        (merchant_id,),
+    ).fetchall()
+    conn.close()
+
+    status_map = {
+        "HIGH": "Pending",
+        "MEDIUM": "Shipped",
+        "LOW": "Delivered",
+    }
+    orders = [
+        {
+            "id": row["order_id"],
+            "status": status_map.get(row["risk_level"], "Pending"),
+            "risk_level": row["risk_level"],
+            "score": row["score"],
+        }
+        for row in rows
+    ]
+    return {"orders": orders}
 
 
 # ── Shopify Webhook Receiver ──────────────────────────────────────────────────

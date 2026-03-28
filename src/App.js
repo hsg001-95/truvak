@@ -24,7 +24,7 @@ class App extends React.Component {
     };
 
     fetchOrders = async () => {
-        const response = await fetch('/api/orders', {
+        const response = await fetch('/v1/orders', {
             headers: { 'Authorization': `Bearer ${this.state.user.token}` }
         });
         const data = await response.json();

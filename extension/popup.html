@@ -2,17 +2,155 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Seller Hub</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trust Intelligence</title>
     <style>
-        /* Add your styles here */
+        :root {
+            --bg: #f7f9fc;
+            --card: #ffffff;
+            --text: #1f2937;
+            --muted: #6b7280;
+            --accent: #0b6ef3;
+            --danger: #b91c1c;
+            --border: #e5e7eb;
+        }
+
+        body {
+            margin: 0;
+            width: 360px;
+            min-height: 480px;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .container {
+            padding: 14px;
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            font-size: 16px;
+            margin: 0 0 10px;
+        }
+
+        h2 {
+            font-size: 14px;
+            margin: 0 0 8px;
+        }
+
+        .muted {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 13px;
+        }
+
+        button {
+            border: none;
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+            width: 100%;
+        }
+
+        .btn-secondary {
+            background: #e5eefc;
+            color: #0b3f91;
+        }
+
+        .btn-danger {
+            background: #fee2e2;
+            color: var(--danger);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .metric {
+            font-size: 13px;
+            margin-bottom: 4px;
+        }
+
+        .orders {
+            max-height: 220px;
+            overflow-y: auto;
+            border-top: 1px solid var(--border);
+            margin-top: 8px;
+            padding-top: 8px;
+        }
+
+        .order-item {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px;
+            margin-bottom: 6px;
+            font-size: 12px;
+            background: #fafafa;
+        }
+
+        .error {
+            color: var(--danger);
+            font-size: 12px;
+            margin-top: 6px;
+        }
     </style>
 </head>
 <body>
-    <h1>Seller Details</h1>
-    <p id="sellerDetails"></p>
-    <p id="totalMoneySaved"></p>
-    <p id="currentActiveOrders"></p>
-    <div id="orderHistory"></div>
+    <div class="container">
+        <div class="card" id="loginCard">
+            <h1>Trust Intelligence Login</h1>
+            <p class="muted">Use demo merchant credentials</p>
+            <div class="row">
+                <input id="username" type="text" placeholder="merchant_shopify" autocomplete="off">
+            </div>
+            <div class="row">
+                <input id="password" type="password" placeholder="Trust@2024" autocomplete="off">
+            </div>
+            <button id="loginButton" class="btn-primary">Sign In</button>
+            <div id="loginError" class="error hidden"></div>
+        </div>
+
+        <div class="card hidden" id="dashboardCard">
+            <h1 id="sellerDetails">Seller Details</h1>
+            <div class="metric" id="totalMoneySaved"></div>
+            <div class="metric" id="currentActiveOrders"></div>
+            <div class="row">
+                <button id="refreshButton" class="btn-secondary">Refresh</button>
+                <button id="logoutButton" class="btn-danger">Logout</button>
+            </div>
+            <h2>Recent Orders</h2>
+            <div id="orderHistory" class="orders"></div>
+        </div>
+    </div>
 
     <script src="popup.js"></script>
 </body>
