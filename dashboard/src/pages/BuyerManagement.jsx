@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getOrders } from '../services/api';
+import { getActiveMerchantId, getOrders } from '../services/api';
 
 export default function BuyerManagement() {
   const [orders, setOrders] = useState([]);
@@ -8,14 +8,14 @@ export default function BuyerManagement() {
 
   useEffect(() => {
     async function load() {
-      const data = await getOrders("merchant_shopify");
+      const data = await getOrders(getActiveMerchantId());
       setOrders(data);
       setLoading(false);
     }
     load();
   }, []);
 
-  if (loading) return <div className="text-brand-muted animate-pulse">Loading buyer data...</div>;
+  if (loading) return <div className="text-on-surface-variant animate-pulse p-8">Loading buyer data...</div>;
 
   // Derive Buyer Profiles
   const buyersMap = {};
@@ -37,71 +37,77 @@ export default function BuyerManagement() {
   })).sort((a,b) => b.orders - a.orders);
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold border-b border-dark-border pb-4">👥 Buyer Management</h1>
+    <div className="space-y-6 max-w-7xl mx-auto pb-20">
+      <h1 className="text-2xl font-bold border-b border-outline-variant/10 pb-4 text-on-surface">👥 Buyer Management</h1>
       
-      <div className="flex border-b border-dark-border mb-6">
+      <div className="flex border-b border-outline-variant/10 mb-6 font-['Inter']">
         <button 
-          className={`py-3 px-6 font-semibold border-b-2 transition-colors ${activeTab === 'history' ? 'border-brand-blue text-brand-blue' : 'border-transparent text-brand-muted hover:text-white'}`}
+          className={`py-3 px-6 font-semibold border-b-2 transition-colors ${activeTab === 'history' ? 'border-primary text-primary' : 'border-transparent text-on-surface-variant hover:text-white'}`}
           onClick={() => setActiveTab('history')}
         >📋 Buyer History</button>
         <button 
-          className={`py-3 px-6 font-semibold border-b-2 transition-colors ${activeTab === 'blacklist' ? 'border-brand-blue text-brand-blue' : 'border-transparent text-brand-muted hover:text-white'}`}
+          className={`py-3 px-6 font-semibold border-b-2 transition-colors ${activeTab === 'blacklist' ? 'border-primary text-primary' : 'border-transparent text-on-surface-variant hover:text-white'}`}
           onClick={() => setActiveTab('blacklist')}
         >🚫 Blacklist</button>
         <button 
-          className={`py-3 px-6 font-semibold border-b-2 transition-colors ${activeTab === 'whitelist' ? 'border-brand-blue text-brand-blue' : 'border-transparent text-brand-muted hover:text-white'}`}
+          className={`py-3 px-6 font-semibold border-b-2 transition-colors ${activeTab === 'whitelist' ? 'border-primary text-primary' : 'border-transparent text-on-surface-variant hover:text-white'}`}
           onClick={() => setActiveTab('whitelist')}
         >✅ Whitelist</button>
       </div>
 
       {activeTab === 'history' && (
-        <div>
-          <h2 className="text-lg font-bold mb-4">Recent Buyer Profiles</h2>
-          <div className="overflow-x-auto rounded-xl border border-dark-border">
-            <table className="table-container">
+        <div className="bg-surface-container-low border border-outline-variant/10 rounded-xl p-6">
+          <h2 className="text-lg font-bold mb-4 text-on-surface">Recent Buyer Profiles</h2>
+          {profiles.length === 0 ? (
+            <div className="text-sm border border-outline-variant/10 bg-surface-container-lowest rounded p-4 text-center text-on-surface-variant italic">
+              No buyer history found for the selected merchant yet.
+            </div>
+          ) : (
+          <div className="overflow-x-auto rounded-lg border border-outline-variant/10">
+            <table className="w-full border-collapse text-sm bg-surface-container-lowest">
               <thead>
                 <tr>
-                  <th className="table-header">Hashed Buyer</th>
-                  <th className="table-header text-right">Orders</th>
-                  <th className="table-header text-right">Avg Score</th>
-                  <th className="table-header text-right">Total Value</th>
-                  <th className="table-header text-right">High Risk</th>
-                  <th className="table-header text-right">Blocked</th>
+                  <th className="text-[11px] text-on-surface-variant font-medium text-left px-4 py-3 border-b border-outline-variant/10 uppercase tracking-widest bg-surface-container-highest">Hashed Buyer</th>
+                  <th className="text-[11px] text-on-surface-variant font-medium text-right px-4 py-3 border-b border-outline-variant/10 uppercase tracking-widest bg-surface-container-highest">Orders</th>
+                  <th className="text-[11px] text-on-surface-variant font-medium text-right px-4 py-3 border-b border-outline-variant/10 uppercase tracking-widest bg-surface-container-highest">Avg Score</th>
+                  <th className="text-[11px] text-on-surface-variant font-medium text-right px-4 py-3 border-b border-outline-variant/10 uppercase tracking-widest bg-surface-container-highest">Total Value</th>
+                  <th className="text-[11px] text-on-surface-variant font-medium text-right px-4 py-3 border-b border-outline-variant/10 uppercase tracking-widest bg-surface-container-highest">High Risk</th>
+                  <th className="text-[11px] text-on-surface-variant font-medium text-right px-4 py-3 border-b border-outline-variant/10 uppercase tracking-widest bg-surface-container-highest">Blocked</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-outline-variant/10">
                 {profiles.slice(0, 15).map(b => (
-                  <tr key={b.id} className="hover:bg-dark-grid transition-colors">
-                    <td className="table-cell font-mono text-xs">{b.id.substring(0, 16)}...</td>
-                    <td className="table-cell text-right font-semibold">{b.orders}</td>
-                    <td className="table-cell text-right text-brand-blue font-bold">{b.avgScore}%</td>
-                    <td className="table-cell text-right">₹{b.valueSum.toLocaleString()}</td>
-                    <td className="table-cell text-right text-brand-red">{b.highRisk}</td>
-                    <td className="table-cell text-right">{b.blocked}</td>
+                  <tr key={b.id} className="hover:bg-surface-bright/20 transition-colors">
+                    <td className="px-4 py-4 font-mono text-xs text-on-surface-variant">{b.id.substring(0, 16)}...</td>
+                    <td className="px-4 py-4 text-right font-semibold text-on-surface">{b.orders}</td>
+                    <td className="px-4 py-4 text-right text-primary font-bold">{b.avgScore}%</td>
+                    <td className="px-4 py-4 text-right text-on-surface">₹{b.valueSum.toLocaleString()}</td>
+                    <td className="px-4 py-4 text-right text-error font-medium">{b.highRisk}</td>
+                    <td className="px-4 py-4 text-right text-on-surface">{b.blocked}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          )}
         </div>
       )}
 
       {activeTab === 'blacklist' && (
-        <div className="bg-dark-paper border border-dark-border rounded-xl p-6">
-           <h2 className="text-lg font-bold mb-2">🚫 Blacklisted Buyers</h2>
-           <p className="text-sm text-brand-muted mb-6">Blacklisted buyers will always receive block_cod action regardless of score.</p>
+        <div className="bg-surface-container-low border border-outline-variant/10 rounded-xl p-6">
+           <h2 className="text-lg font-bold mb-2 text-on-surface">🚫 Blacklisted Buyers</h2>
+           <p className="text-sm text-on-surface-variant mb-6">Blacklisted buyers will always receive block_cod action regardless of score.</p>
            {/* Mock list */}
-           <div className="text-sm border border-dark-grid rounded p-4 text-center">No blacklisted buyers yet.</div>
+           <div className="text-sm border border-outline-variant/10 bg-surface-container-lowest rounded p-4 text-center text-on-surface-variant italic">No blacklisted buyers yet.</div>
         </div>
       )}
 
       {activeTab === 'whitelist' && (
-        <div className="bg-dark-paper border border-dark-border rounded-xl p-6">
-           <h2 className="text-lg font-bold mb-2">✅ Whitelisted Buyers</h2>
-           <p className="text-sm text-brand-muted mb-6">Whitelisted buyers always receive approve action regardless of score.</p>
+        <div className="bg-surface-container-low border border-outline-variant/10 rounded-xl p-6">
+           <h2 className="text-lg font-bold mb-2 text-on-surface">✅ Whitelisted Buyers</h2>
+           <p className="text-sm text-on-surface-variant mb-6">Whitelisted buyers always receive approve action regardless of score.</p>
            {/* Mock list */}
-           <div className="text-sm border border-dark-grid rounded p-4 text-center">No whitelisted buyers yet.</div>
+           <div className="text-sm border border-outline-variant/10 bg-surface-container-lowest rounded p-4 text-center text-on-surface-variant italic">No whitelisted buyers yet.</div>
         </div>
       )}
 

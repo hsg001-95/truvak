@@ -1,4 +1,10 @@
-// Trust Intelligence Platform — Flipkart Seller Hub Content Script
-// Phase 2 — coming after Amazon is stable
+// Trust Intelligence Platform
+// Flipkart compatibility script.
+// The full runtime is shared in content_amazon.js for both seller platforms.
 
-console.log('[TIP] Flipkart content script loaded — Phase 2');
+(() => {
+	const host = window.location.hostname;
+	if (!host.includes('seller.flipkart')) return;
+
+	console.log('[TIP] Flipkart compatibility layer active');
+})();

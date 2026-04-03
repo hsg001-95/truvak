@@ -15,6 +15,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Overview />} />
+
           <Route path="live-orders" element={<LiveOrders />} />
           <Route path="score-order" element={<ScoreOrder />} />
           <Route path="buyer-management" element={<BuyerManagement />} />

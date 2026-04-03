@@ -1,17 +1,24 @@
-import Header from './Header';
-import Sidebar from './Sidebar';
-import Footer from './Footer';
-import { Outlet } from 'react-router-dom';
+import { Outlet } from "react-router-dom";
+import Sidebar from "./Sidebar";
+import Header from "./Header";
+import Footer from "./Footer";
+import SplashScreen from "../ui/SplashScreen";
 
 export default function Layout() {
   return (
-    <div className="bg-[#10141a] text-[#dfe2eb] font-sans antialiased min-h-screen">
-      <Header />
-      <Sidebar />
-      <main className="ml-64 mt-16 p-8 min-h-[calc(100vh-64px)] overflow-y-auto pb-24">
-        <Outlet />
-      </main>
-      <Footer />
-    </div>
+    <>
+      <SplashScreen />
+      <div className="bg-[#10141a] text-[#dfe2eb] min-h-screen font-sans animate-dashboard-enter">
+        <Sidebar />
+        <Header />
+        
+        {/* Main Content */}
+        <main className="md:ml-64 p-4 md:p-8 min-h-[calc(100vh-64px-72px)] overflow-x-hidden">
+          <Outlet />
+        </main>
+
+        <Footer />
+      </div>
+    </>
   );
 }

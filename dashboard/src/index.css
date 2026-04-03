@@ -38,115 +38,67 @@
   100% { transform: translateX(100%); }
 }
 
+/* Splash Animations */
+@keyframes pulse-ring {
+  0% { transform: scale(0.8); opacity: 0; }
+  50% { opacity: 0.3; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes splash-exit {
+  0% { opacity: 1; transform: translateX(0); }
+  100% { opacity: 0; transform: translateX(-100%); }
+}
+
+@keyframes dashboard-enter {
+  0% { opacity: 0; transform: translateX(100%); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-fade-in-delayed-1 {
+  opacity: 0;
+  animation: fade-in 0.6s ease-out 0.3s forwards;
+}
+
+.animate-fade-in-delayed-2 {
+  opacity: 0;
+  animation: fade-in 0.6s ease-out 0.6s forwards;
+}
+
+.animate-fade-in-delayed-3 {
+  opacity: 0;
+  animation: fade-in 0.6s ease-out 1s forwards;
+}
+
+.animate-splash-exit {
+  animation: splash-exit 0.8s ease-in-out 2.5s forwards;
+}
+
+.animate-dashboard-enter {
+  opacity: 0;
+  animation: dashboard-enter 0.8s ease-in-out 2.5s forwards;
+}
+
+.glass-panel {
+  background: rgba(49, 53, 60, 0.6);
+  backdrop-filter: blur(20px);
+}
+
 @layer components {
-  .metric-card {
-    @apply bg-dark-paper border border-dark-border rounded-xl p-4 mb-1 border-l-4 shadow-sm flex flex-col justify-between;
+  .tonal-card {
+    @apply bg-[#181c22] transition-all duration-150 ease-out;
   }
-  .metric-card-green {
-    @apply metric-card border-l-brand-green;
-  }
-  .metric-card-blue {
-    @apply metric-card border-l-brand-blue;
-  }
-  .metric-card-amber {
-    @apply metric-card border-l-brand-amber;
-  }
-  .metric-card-red {
-    @apply metric-card border-l-brand-red;
-  }
-  
-  .kpi-label {
-    @apply text-[11px] text-brand-muted font-semibold tracking-wider uppercase mb-1;
-  }
-  .kpi-value {
-    @apply text-[22px] font-bold text-brand-text mb-1 drop-shadow-sm;
-  }
-  .kpi-delta-pos {
-    @apply text-[12px] text-brand-green;
-  }
-  .kpi-delta-neg {
-    @apply text-[12px] text-brand-red;
-  }
-  .kpi-delta-neu {
-    @apply text-[12px] text-brand-muted;
-  }
-
-  .savings-banner {
-    @apply bg-[#0A1F10] border border-[#238636] rounded-xl p-5 my-3 flex justify-between items-center flex-wrap gap-4;
-  }
-  .savings-item {
-    @apply flex flex-col;
-  }
-  .savings-label {
-    @apply text-[10px] text-[#3FB950] font-semibold tracking-wider uppercase mb-1;
-  }
-  .savings-val {
-    @apply text-[24px] font-bold text-brand-text;
-  }
-  .savings-sub {
-    @apply text-[11px] text-brand-muted mt-0.5;
-  }
-
-  .badge-high {
-    @apply bg-[#2D1117] text-[#F85149] border border-[#DA3633] px-2.5 py-1 rounded-full font-semibold text-[11px];
-  }
-  .badge-medium {
-    @apply bg-[#2D1D0A] text-[#D29922] border border-[#9E6A03] px-2.5 py-1 rounded-full font-semibold text-[11px];
-  }
-  .badge-low {
-    @apply bg-[#0D2818] text-[#3FB950] border border-[#238636] px-2.5 py-1 rounded-full font-semibold text-[11px];
-  }
-
-  .chart-grid {
-    background-image: radial-gradient(circle, #30363D 1px, transparent 1px);
-    background-size: 24px 24px;
-  }
-
-  .risk-badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 4px 10px;
-      border-radius: 9999px;
-      font-size: 12px;
-      font-weight: 700;
-      text-transform: uppercase;
-      line-height: 1;
-  }
-  .risk-badge-high {
-      background-color: #F85149;
-      color: white;
-      animation: pulse-red-glow 2s infinite;
-  }
-  .risk-badge-medium {
-      background-color: #E3B341;
-      color: #0f1823;
-  }
-  .risk-badge-low {
-      background-color: #3FB950;
-      color: white;
-  }
-
-  .section-title {
-    @apply text-[15px] font-semibold text-brand-text mt-5 mb-2.5 pb-2 border-b border-dark-border;
-  }
-  
-  .table-container {
-    @apply w-full border-collapse text-[13px] bg-dark-paper;
-  }
-  .table-header {
-    @apply text-[11px] text-brand-muted font-medium text-left px-2.5 py-2 border-b border-dark-border uppercase tracking-wide bg-dark-paper;
-  }
-  .table-cell {
-    @apply px-2.5 py-3 border-b border-dark-grid text-[#C9D1D9];
-  }
-  
-  .input-field {
-    @apply w-full bg-dark-paper text-brand-text border border-dark-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue;
-  }
-  
-  .btn-primary {
-    @apply bg-brand-blue hover:bg-blue-600 text-white font-medium rounded-md px-4 py-2 text-sm transition-colors;
+  .tonal-card:hover {
+    @apply bg-[#262a31];
   }
 }
 
@@ -171,3 +123,92 @@
     transform: translateX(20px);
     pointer-events: none;
 }
+
+@keyframes drawDonut {
+  from { stroke-dashoffset: 283; }
+  to { stroke-dashoffset: 0; }
+}
+.animate-draw {
+  animation: drawDonut 1.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes lineDraw {
+  from { stroke-dashoffset: 1000; }
+  to { stroke-dashoffset: 0; }
+}
+.animate-line {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation: lineDraw 2s ease-out forwards;
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.animate-slide-down {
+  animation: slideDown 0.3s ease-out forwards;
+}
+
+@keyframes draw {
+  from { stroke-dashoffset: 440; }
+  to { stroke-dashoffset: 100; }
+}
+.gauge-ring {
+  stroke-dasharray: 440;
+  stroke-dashoffset: 100;
+  transition: stroke-dashoffset 1s ease-out;
+  animation: draw 1.5s ease-out forwards;
+}
+
+@keyframes progress-grow {
+  from { width: 0; }
+}
+.progress-animate {
+  animation: progress-grow 1s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.slider-thumb::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: #58a6ff;
+  cursor: pointer;
+  border-radius: 50%;
+  border: 3px solid #10141a;
+}
+.slider-track {
+  background: linear-gradient(to right, #58a6ff 0%, #58a6ff 75%, #414752 75%, #414752 100%);
+}
+
+.drag-indicator {
+  cursor: grab;
+}
+.drag-indicator:active {
+  cursor: grabbing;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #10141a;
+}
+::-webkit-scrollbar-thumb {
+  background: #31353c;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #414752;
+}
+
+.tonal-shift-bg-surface-container-low { background-color: #181c22; }
+.tonal-contrast-surface-container-low { background-color: #181c22; }
+/* Custom Savings Calculator Colors from Prompt */
+.calculator-card { background-color: #161B22; border: 1px solid #30363D; border-radius: 12px; }
+.calculator-green { color: #3FB950; }
+.calculator-grey-text { color: #8B949E; }
+
+.map-container { background-color: #161B22; position: relative; }
+.risk-gradient { background: linear-gradient(to right, #fee2e2, #ef4444, #7f1d1d); }

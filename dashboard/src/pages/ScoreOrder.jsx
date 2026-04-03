@@ -1,128 +1,149 @@
-import { useState } from 'react';
-import { scoreOrder } from '../services/api';
+import { useMemo, useState } from 'react';
+import {
+  getActiveMerchantId,
+  getAreaIntelligence,
+  getBuyerHistory,
+  scoreOrder,
+} from '../services/api';
+
+function nextOrderId() {
+  return `ORD-${Date.now()}`;
+}
 
 export default function ScoreOrder() {
-  const [formData, setFormData] = useState({
-    order_id: `ORD-${Math.floor(Math.random() * 9000) + 1000}`,
-    buyer_phone: '9876543210',
-    order_value: 1500,
-    pin_code: '828001',
-    payment: 'COD',
-    item_count: 1,
-    order_month: new Date().getMonth() + 1
-  });
-  const [result, setResult] = useState(null);
+  const merchantId = getActiveMerchantId();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [scoreResult, setScoreResult] = useState(null);
+  const [areaResult, setAreaResult] = useState(null);
+  const [buyerResult, setBuyerResult] = useState(null);
+  const [form, setForm] = useState({
+    order_id: nextOrderId(),
+    raw_buyer_id: '9999988888',
+    order_value: 1500,
+    is_cod: 1,
+    pin_code: '560001',
+    item_count: 1,
+    installments: 1,
+    order_month: new Date().getMonth() + 1,
+  });
 
-  const handleSubmit = async (e) => {
+  const scoreColor = useMemo(() => {
+    if (!scoreResult) return 'text-on-surface';
+    if (scoreResult.risk_level === 'HIGH') return 'text-error';
+    if (scoreResult.risk_level === 'MEDIUM') return 'text-tertiary';
+    return 'text-emerald-400';
+  }, [scoreResult]);
+
+  const onChange = (key, value) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const onSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
+
     const payload = {
-      order_id: formData.order_id,
-      raw_buyer_id: formData.buyer_phone,
-      merchant_id: "merchant_shopify",
-      order_value: Number(formData.order_value),
-      is_cod: formData.payment === "COD" ? 1 : 0,
-      pin_code: formData.pin_code,
-      item_count: Number(formData.item_count),
-      installments: 1,
-      order_month: Number(formData.order_month),
+      ...form,
+      merchant_id: merchantId,
+      order_value: Number(form.order_value),
+      is_cod: Number(form.is_cod),
+      item_count: Number(form.item_count),
+      installments: Number(form.installments),
+      order_month: Number(form.order_month),
     };
-    const res = await scoreOrder(payload);
-    setResult(res);
-    setLoading(false);
+
+    try {
+      const score = await scoreOrder(payload);
+      if (!score) throw new Error('Scoring request failed');
+      setScoreResult(score);
+
+      const [area, buyer] = await Promise.all([
+        getAreaIntelligence(form.pin_code),
+        getBuyerHistory(score.hashed_buyer_id, merchantId),
+      ]);
+      setAreaResult(area);
+      setBuyerResult(buyer);
+      setForm((prev) => ({ ...prev, order_id: nextOrderId() }));
+    } catch (err) {
+      setError(err.message || 'Failed to score order');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="max-w-3xl space-y-6">
-      <h1 className="text-2xl font-bold border-b border-dark-border pb-4">➕ Score a New Order</h1>
-      
-      <div className="bg-dark-paper border border-dark-border rounded-xl p-6">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs uppercase text-brand-muted mb-1 font-semibold">Order ID</label>
-              <input required type="text" className="input-field" value={formData.order_id} onChange={e => setFormData({...formData, order_id: e.target.value})} />
-            </div>
-            <div>
-              <label className="block text-xs uppercase text-brand-muted mb-1 font-semibold">Buyer Phone/Email</label>
-              <input required type="text" className="input-field" value={formData.buyer_phone} onChange={e => setFormData({...formData, buyer_phone: e.target.value})} />
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs uppercase text-brand-muted mb-1 font-semibold">Order Value (₹)</label>
-              <input required type="number" className="input-field" value={formData.order_value} onChange={e => setFormData({...formData, order_value: e.target.value})} />
-            </div>
-            <div>
-              <label className="block text-xs uppercase text-brand-muted mb-1 font-semibold">PIN Code</label>
-              <input required type="text" className="input-field" value={formData.pin_code} onChange={e => setFormData({...formData, pin_code: e.target.value})} />
-            </div>
-          </div>
+    <div className="space-y-6 max-w-6xl mx-auto pb-20">
+      <h1 className="text-2xl font-bold border-b border-outline-variant/10 pb-4 text-on-surface">Score Order</h1>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs uppercase text-brand-muted mb-1 font-semibold">Payment</label>
-              <select className="input-field" value={formData.payment} onChange={e => setFormData({...formData, payment: e.target.value})}>
-                <option>COD</option>
-                <option>Prepaid</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs uppercase text-brand-muted mb-1 font-semibold">Items</label>
-              <input required type="number" min="1" className="input-field" value={formData.item_count} onChange={e => setFormData({...formData, item_count: e.target.value})} />
-            </div>
-            <div>
-              <label className="block text-xs uppercase text-brand-muted mb-1 font-semibold">Month</label>
-              <input required type="number" min="1" max="12" className="input-field" value={formData.order_month} onChange={e => setFormData({...formData, order_month: e.target.value})} />
-            </div>
-          </div>
+      <div className="bg-surface-container-low border border-outline-variant/10 rounded-xl p-6">
+        <p className="text-xs text-on-surface-variant uppercase tracking-widest mb-4">Merchant: {merchantId}</p>
+        <form onSubmit={onSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <input className="bg-[#0D1117] border border-[#30363D] rounded-lg px-3 py-2" value={form.order_id} onChange={(e) => onChange('order_id', e.target.value)} placeholder="Order ID" required />
+          <input className="bg-[#0D1117] border border-[#30363D] rounded-lg px-3 py-2" value={form.raw_buyer_id} onChange={(e) => onChange('raw_buyer_id', e.target.value)} placeholder="Buyer phone/email" required />
+          <input className="bg-[#0D1117] border border-[#30363D] rounded-lg px-3 py-2" type="number" value={form.order_value} onChange={(e) => onChange('order_value', e.target.value)} placeholder="Order value" min="1" required />
+          <input className="bg-[#0D1117] border border-[#30363D] rounded-lg px-3 py-2" value={form.pin_code} onChange={(e) => onChange('pin_code', e.target.value)} placeholder="PIN code" required />
+          <select className="bg-[#0D1117] border border-[#30363D] rounded-lg px-3 py-2" value={form.is_cod} onChange={(e) => onChange('is_cod', Number(e.target.value))}>
+            <option value={1}>COD</option>
+            <option value={0}>Prepaid</option>
+          </select>
+          <input className="bg-[#0D1117] border border-[#30363D] rounded-lg px-3 py-2" type="number" value={form.item_count} onChange={(e) => onChange('item_count', e.target.value)} min="1" placeholder="Item count" />
+          <input className="bg-[#0D1117] border border-[#30363D] rounded-lg px-3 py-2" type="number" value={form.installments} onChange={(e) => onChange('installments', e.target.value)} min="1" placeholder="Installments" />
+          <input className="bg-[#0D1117] border border-[#30363D] rounded-lg px-3 py-2" type="number" value={form.order_month} onChange={(e) => onChange('order_month', e.target.value)} min="1" max="12" placeholder="Order month" />
 
-          <button type="submit" disabled={loading} className="w-full btn-primary py-3 text-base flex justify-center items-center">
-             {loading ? <span className="animate-pulse">Scoring...</span> : <span>🔍 Get Trust Score</span>}
-          </button>
+          <div className="md:col-span-2 lg:col-span-4 flex gap-3">
+            <button type="submit" disabled={loading} className="px-4 py-2 bg-primary text-black rounded-md text-sm font-bold disabled:opacity-60">
+              {loading ? 'Scoring...' : 'Run Score'}
+            </button>
+          </div>
         </form>
+        {error ? <p className="text-error text-sm mt-3">{error}</p> : null}
       </div>
 
-      {result && result.score && (
-        <div className="bg-[#1a386b]/10 border border-brand-blue rounded-xl p-6 mt-6">
-          <h2 className="text-lg font-bold mb-4 flex items-center space-x-2">
-             <span>Result for</span> <span className="bg-brand-blue text-white px-2 rounded text-sm">{formData.order_id}</span>
-          </h2>
-          <div className="grid grid-cols-4 gap-4 bg-dark-bg p-4 rounded-lg border border-dark-border mb-4">
-             <div>
-               <div className="text-xs text-brand-muted">Trust Score</div>
-               <div className="text-xl font-bold">{result.score}/100</div>
-             </div>
-             <div>
-               <div className="text-xs text-brand-muted">Risk Level</div>
-               <div className="text-xl font-bold">{result.risk_level}</div>
-             </div>
-             <div>
-               <div className="text-xs text-brand-muted">Action</div>
-               <div className="text-xl font-bold uppercase text-sm tracking-wider mt-1">{result.recommended_action?.replace('_', ' ')}</div>
-             </div>
-             <div>
-               <div className="text-xs text-brand-muted">RTO Prob</div>
-               <div className="text-xl font-bold">{(result.model_rto_prob * 100).toFixed(1)}%</div>
-             </div>
-          </div>
-          
-          <div className="w-full bg-dark-grid rounded-full h-2.5 mb-6">
-             <div className={`h-2.5 rounded-full ${result.score >= 70 ? 'bg-brand-green' : result.score >= 40 ? 'bg-brand-amber' : 'bg-brand-red'}`} style={{width: `${result.score}%`}}></div>
-          </div>
-
-          {result.factors && result.factors.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold mb-2">Risk Factors</h3>
-              <ul className="list-disc pl-5 text-sm space-y-1 text-brand-muted">
-                {result.factors.map((f, i) => <li key={i}>{f}</li>)}
+      {scoreResult ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 bg-surface-container-low border border-outline-variant/10 rounded-xl p-6">
+            <h2 className="text-lg font-bold text-on-surface mb-4">Scoring Result</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div><p className="text-xs text-on-surface-variant">Order</p><p className="font-mono text-sm">{scoreResult.order_id}</p></div>
+              <div><p className="text-xs text-on-surface-variant">Score</p><p className={`text-2xl font-bold ${scoreColor}`}>{scoreResult.score}</p></div>
+              <div><p className="text-xs text-on-surface-variant">Risk</p><p className={`font-bold ${scoreColor}`}>{scoreResult.risk_level}</p></div>
+              <div><p className="text-xs text-on-surface-variant">Action</p><p className="font-semibold uppercase text-sm">{scoreResult.recommended_action}</p></div>
+            </div>
+            <div className="mt-4">
+              <p className="text-xs text-on-surface-variant mb-2">Factors</p>
+              <ul className="text-sm list-disc pl-5 space-y-1">
+                {(scoreResult.factors || []).map((f) => <li key={f}>{f}</li>)}
               </ul>
             </div>
-          )}
+          </div>
+
+          <div className="bg-surface-container-low border border-outline-variant/10 rounded-xl p-6">
+            <h3 className="text-sm font-bold uppercase tracking-widest text-on-surface-variant mb-3">Buyer History</h3>
+            {buyerResult ? (
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between"><span>Total Orders</span><span>{buyerResult.total_orders}</span></div>
+                <div className="flex justify-between"><span>RTO Count</span><span>{buyerResult.rto_count}</span></div>
+                <div className="flex justify-between"><span>Avg Score</span><span>{buyerResult.avg_score}</span></div>
+                <div className="flex justify-between"><span>Profile</span><span className="text-right">{buyerResult.risk_profile}</span></div>
+              </div>
+            ) : <p className="text-sm text-on-surface-variant">No buyer history available.</p>}
+          </div>
+
+          <div className="lg:col-span-3 bg-surface-container-low border border-outline-variant/10 rounded-xl p-6">
+            <h3 className="text-sm font-bold uppercase tracking-widest text-on-surface-variant mb-3">Area Intelligence</h3>
+            {areaResult ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                <div><p className="text-xs text-on-surface-variant">PIN</p><p>{areaResult.pin_code}</p></div>
+                <div><p className="text-xs text-on-surface-variant">Tier</p><p>{areaResult.tier_label}</p></div>
+                <div><p className="text-xs text-on-surface-variant">Area RTO</p><p>{areaResult.area_rto_rate}%</p></div>
+                <div><p className="text-xs text-on-surface-variant">COD Pref</p><p>{areaResult.cod_preference}%</p></div>
+              </div>
+            ) : <p className="text-sm text-on-surface-variant">Area intelligence unavailable.</p>}
+          </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

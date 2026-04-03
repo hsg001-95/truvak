@@ -1,14 +1,28 @@
 import axios from 'axios';
 
-const API_URL = "http://127.0.0.1:8000";
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+const DEFAULT_MERCHANT_ID = 'merchant_amazon';
 
-// Fallback demo data if API is down
-const DEMO_ORDERS = [
-  {"id":"ORD-D001","buyer":"9876543210","order_value":3200,"is_cod":1,"pin_code":"828001","item_count":2,"order_month":10, "score": 85, "risk_level": "LOW", "recommended_action": "approve"},
-  {"id":"ORD-D002","buyer":"9123456780","order_value":650, "is_cod":0,"pin_code":"110001","item_count":1,"order_month":3, "score": 92, "risk_level": "LOW", "recommended_action": "approve"},
-  {"id":"ORD-D003","buyer":"8765432109","order_value":1800,"is_cod":1,"pin_code":"845001","item_count":3,"order_month":11, "score": 35, "risk_level": "HIGH", "recommended_action": "block_cod"},
-  {"id":"ORD-D004","buyer":"7654321098","order_value":450, "is_cod":0,"pin_code":"400001","item_count":1,"order_month":5, "score": 60, "risk_level": "MEDIUM", "recommended_action": "warn"},
-];
+export const getActiveMerchantId = () => {
+  const saved = window.localStorage.getItem('tip_merchant_id');
+  return saved || DEFAULT_MERCHANT_ID;
+};
+
+export const setActiveMerchantId = (merchantId) => {
+  window.localStorage.setItem('tip_merchant_id', merchantId);
+};
+
+const normalizeOrder = (order) => ({
+  id: order.id || order.order_id || 'ORD-NA',
+  score: typeof order.score === 'number' ? order.score : Number(order.score || 0),
+  risk_level: order.risk_level || 'UNKNOWN',
+  recommended_action: order.recommended_action || 'n/a',
+  is_cod: Number(order.is_cod || 0),
+  order_value: Number(order.order_value || 0),
+  pin_code: order.pin_code || '------',
+  created_at: order.created_at || null,
+  buyer_id: order.buyer_id || order.hashed_buyer_id || order.raw_buyer_id || null,
+});
 
 export const apiClient = axios.create({
   baseURL: API_URL,
@@ -36,12 +50,42 @@ export const apiPost = async (endpoint, payload) => {
 };
 
 export const getOrders = async (merchant_id) => {
-  const data = await apiGet(`/v1/scores/${merchant_id}?limit=200`);
-  return data?.orders || DEMO_ORDERS; // Mock fallback
+  const merchantId = merchant_id || getActiveMerchantId();
+  const data = await apiGet(`/v1/scores/${merchantId}?limit=200`);
+  const rawOrders = Array.isArray(data?.orders) ? data.orders : [];
+  return rawOrders.map(normalizeOrder);
 };
 
 export const scoreOrder = async (payload) => {
   return await apiPost("/v1/score", payload);
+};
+
+export const getRules = async (merchant_id) => {
+  const merchantId = merchant_id || getActiveMerchantId();
+  const data = await apiGet(`/v1/rules/${merchantId}`);
+  return Array.isArray(data?.rules) ? data.rules : [];
+};
+
+export const updateCodThreshold = async (merchant_id, threshold) => {
+  const merchantId = merchant_id || getActiveMerchantId();
+  return await apiPost(`/v1/rules/${merchantId}/threshold?threshold=${Number(threshold)}`, {});
+};
+
+export const getOutcomes = async (merchant_id) => {
+  const merchantId = merchant_id || getActiveMerchantId();
+  const data = await apiGet(`/v1/outcomes/${merchantId}`);
+  return Array.isArray(data?.outcomes) ? data.outcomes : [];
+};
+
+export const getAreaIntelligence = async (pinCode) => {
+  if (!pinCode) return null;
+  return await apiGet(`/v1/area/intelligence/${pinCode}`);
+};
+
+export const getBuyerHistory = async (hashedBuyerId, merchant_id) => {
+  if (!hashedBuyerId) return null;
+  const merchantId = merchant_id || getActiveMerchantId();
+  return await apiGet(`/v1/buyer/history/${hashedBuyerId}/${merchantId}`);
 };
 
 export const logOutcome = async (order_id, merchant_id, buyer_id, result) => {

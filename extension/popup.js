@@ -1,70 +1,105 @@
 const API_BASE = 'http://127.0.0.1:8000';
 
-const loginCard = document.getElementById('loginCard');
-const dashboardCard = document.getElementById('dashboardCard');
-const loginError = document.getElementById('loginError');
+const panelRoot = document.getElementById('panelRoot');
+const collapseButton = document.getElementById('collapseButton');
+const automateButton = document.getElementById('automateButton');
+const logsButton = document.getElementById('logsButton');
+const logsSection = document.getElementById('logsSection');
 
-const usernameInput = document.getElementById('username');
-const passwordInput = document.getElementById('password');
-const loginButton = document.getElementById('loginButton');
+const workspaceName = document.getElementById('workspaceName');
+const workspaceId = document.getElementById('workspaceId');
+const syncState = document.getElementById('syncState');
+const coverageBar = document.getElementById('coverageBar');
+const coverageValue = document.getElementById('coverageValue');
+const latencyValue = document.getElementById('latencyValue');
+const resourceValue = document.getElementById('resourceValue');
+const orderHistory = document.getElementById('orderHistory');
+const MERCHANT_ID = localStorage.getItem('tip_merchant_id') || 'merchant_amazon';
 
-const seller = document.getElementById('sellerDetails');
-const saved = document.getElementById('totalMoneySaved');
-const active = document.getElementById('currentActiveOrders');
-const history = document.getElementById('orderHistory');
+let isCollapsed = false;
+let logsVisible = false;
 
-const refreshButton = document.getElementById('refreshButton');
-const logoutButton = document.getElementById('logoutButton');
-
-function showLogin(message = '') {
-    loginCard.classList.remove('hidden');
-    dashboardCard.classList.add('hidden');
-    if (message) {
-        loginError.innerText = message;
-        loginError.classList.remove('hidden');
-    } else {
-        loginError.classList.add('hidden');
-        loginError.innerText = '';
-    }
+function setSyncState(text, isLive) {
+    syncState.textContent = text;
+    syncState.parentElement.style.color = isLive ? '#ffba42' : '#8b919d';
+    syncState.previousElementSibling.style.background = isLive ? '#ffba42' : '#8b919d';
+    syncState.previousElementSibling.style.boxShadow = isLive
+        ? '0 0 10px rgba(255, 186, 66, 0.6)'
+        : 'none';
 }
 
-function showDashboard() {
-    loginCard.classList.add('hidden');
-    dashboardCard.classList.remove('hidden');
-}
-
-function renderOrders(token, orders) {
-    seller.innerText = `Merchant: ${token}`;
-    saved.innerText = `${orders.length} scored orders loaded`;
-    active.innerText = `${orders.filter((o) => o.status !== 'Delivered').length} Active Orders`;
-    history.innerHTML = '';
+function renderOrders(orders) {
+    orderHistory.innerHTML = '';
 
     if (!orders.length) {
         const empty = document.createElement('div');
-        empty.className = 'order-item';
-        empty.innerText = 'No scored orders found yet.';
-        history.appendChild(empty);
+        empty.className = 'log-item';
+        empty.textContent = 'No scored orders found yet.';
+        orderHistory.appendChild(empty);
         return;
     }
 
-    orders.slice(0, 12).forEach((order) => {
-        const div = document.createElement('div');
-        div.className = 'order-item';
-        div.innerText = `${order.id} | ${order.status} | ${order.risk_level} | Score ${order.score}`;
-        history.appendChild(div);
+    orders.slice(0, 8).forEach((order) => {
+        const item = document.createElement('div');
+        item.className = 'log-item';
+
+        const risk = order.risk_level || 'UNKNOWN';
+        const score = typeof order.score === 'number' ? order.score : '--';
+        const action = order.recommended_action || 'n/a';
+
+        item.innerHTML = `<strong>${order.id || 'ORD-NA'}</strong> ${risk} | Score ${score} | ${action}`;
+        orderHistory.appendChild(item);
     });
 }
 
-async function loadOrders() {
-    const token = localStorage.getItem('user');
-    if (!token) {
-        showLogin();
-        return;
+function applyCoverage(orders) {
+    const safeCount = orders.filter((o) => o.risk_level !== 'HIGH').length;
+    const coverage = orders.length ? Math.round((safeCount / orders.length) * 100) : 0;
+    coverageBar.style.width = `${coverage}%`;
+    coverageValue.textContent = `${coverage}%`;
+}
+
+function applyResource(orders) {
+    const totalValue = orders.reduce((acc, order) => acc + (order.order_value || 0), 0);
+    resourceValue.textContent = `Tracked: Rs ${totalValue.toLocaleString('en-IN')}`;
+}
+
+async function loginWithConfiguredCredentials() {
+    const response = await fetch(`${API_BASE}/v1/login`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            username: MERCHANT_ID,
+            password: 'Trust@2024',
+        }),
+    });
+
+    if (!response.ok) {
+        throw new Error('Login failed');
     }
 
-    showDashboard();
+    const data = await response.json();
+    localStorage.setItem('user', data.token);
+    return data.token;
+}
+
+async function ensureToken() {
+    const existing = localStorage.getItem('user');
+    if (existing) return existing;
+    return loginWithConfiguredCredentials();
+}
+
+async function loadOrders() {
+    const start = performance.now();
+    setSyncState('SYNCING', false);
 
     try {
+        const token = await ensureToken();
+        workspaceName.textContent = 'Seller Workspace';
+        workspaceId.textContent = `${MERCHANT_ID} | #${String(token).slice(0, 10)}...`;
+
         const response = await fetch(`${API_BASE}/v1/orders`, {
             headers: {
                 Authorization: `Bearer ${token}`,
@@ -77,58 +112,38 @@ async function loadOrders() {
 
         const data = await response.json();
         const orders = data.orders || [];
-        renderOrders(token, orders);
+
+        const elapsed = Math.round(performance.now() - start);
+        latencyValue.textContent = `Latency: ${elapsed}ms`;
+        applyCoverage(orders);
+        applyResource(orders);
+        renderOrders(orders);
+        setSyncState('LIVE SYNC', true);
     } catch (error) {
-        showLogin('API unreachable. Start backend on 127.0.0.1:8000');
+        latencyValue.textContent = 'Latency: offline';
+        resourceValue.textContent = 'Backend unavailable';
+        coverageBar.style.width = '0%';
+        coverageValue.textContent = '0%';
+        renderOrders([]);
+        setSyncState('OFFLINE', false);
     }
 }
 
-async function login() {
-    const username = (usernameInput.value || '').trim();
-    const password = passwordInput.value || '';
-
-    if (!username || !password) {
-        showLogin('Enter both username and password.');
-        return;
-    }
-
-    try {
-        const response = await fetch(`${API_BASE}/v1/login`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ username, password }),
-        });
-
-        if (!response.ok) {
-            throw new Error('Invalid credentials');
-        }
-
-        const data = await response.json();
-        localStorage.setItem('user', data.token);
-        showLogin();
-        await loadOrders();
-    } catch (error) {
-        showLogin('Login failed. Check credentials.');
-    }
+function toggleLogs() {
+    logsVisible = !logsVisible;
+    logsSection.classList.toggle('visible', logsVisible);
 }
 
-function logout() {
-    localStorage.removeItem('user');
-    history.innerHTML = '';
-    usernameInput.value = '';
-    passwordInput.value = '';
-    showLogin();
+function toggleCollapse() {
+    isCollapsed = !isCollapsed;
+    panelRoot.classList.toggle('collapsed', isCollapsed);
+    collapseButton.querySelector('.material-symbols-outlined').textContent = isCollapsed
+        ? 'chevron_left'
+        : 'chevron_right';
 }
 
-loginButton.addEventListener('click', login);
-passwordInput.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') {
-        login();
-    }
-});
-refreshButton.addEventListener('click', loadOrders);
-logoutButton.addEventListener('click', logout);
+collapseButton.addEventListener('click', toggleCollapse);
+logsButton.addEventListener('click', toggleLogs);
+automateButton.addEventListener('click', loadOrders);
 
 loadOrders();

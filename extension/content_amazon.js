@@ -16,7 +16,7 @@ let isScoringInFlight = false;
 let isSummaryInFlight = false;
 let lastSummaryAt     = 0;
 let currentViewMode   = 'init';
-let extensionEnabled  = false;
+let extensionEnabled  = true;
 
 // ── Site config — universal pattern matching ──────────────────────────────────
 const SITE_CONFIGS = {
@@ -34,6 +34,20 @@ function getSiteConfig() {
     if (host.includes(pattern)) return config;
   }
   return null;
+}
+
+function getDefaultMerchantIdByHost() {
+  const host = window.location.hostname;
+
+  if (host.includes('seller.flipkart')) {
+    return 'merchant-flipkart';
+  }
+
+  if (host.includes('localhost') || host.includes('127.0.0.1')) {
+    return 'merchant-local';
+  }
+
+  return 'merchant-amazon';
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
@@ -65,9 +79,17 @@ async function loadRuntimeConfig() {
     );
   });
 
+  const host = window.location.hostname;
+  const isLocalHost = host.includes('localhost') || host.includes('127.0.0.1');
+
+  TIP_CONFIG.merchantId = getDefaultMerchantIdByHost();
   TIP_CONFIG.apiUrl = cfg.apiUrl || TIP_CONFIG.apiUrl;
-  TIP_CONFIG.merchantId = cfg.merchantId || TIP_CONFIG.merchantId;
-  extensionEnabled = !!cfg.extensionEnabled;
+  if (isLocalHost && cfg.merchantId) {
+    TIP_CONFIG.merchantId = cfg.merchantId;
+  }
+  extensionEnabled = typeof cfg.extensionEnabled === 'boolean'
+    ? cfg.extensionEnabled
+    : true;
 }
 
 function isLoggedInSellerPage() {
@@ -87,336 +109,633 @@ function isLoggedInSellerPage() {
 // ── Inject sidebar CSS into page ──────────────────────────────────────────────
 function injectSidebarStyles() {
   if (document.getElementById('tip-styles')) return;
+
+  if (!document.getElementById('tip-font-inter')) {
+    const fontInter = document.createElement('link');
+    fontInter.id = 'tip-font-inter';
+    fontInter.rel = 'stylesheet';
+    fontInter.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap';
+    document.head.appendChild(fontInter);
+  }
+
+  if (!document.getElementById('tip-font-material')) {
+    const fontMaterial = document.createElement('link');
+    fontMaterial.id = 'tip-font-material';
+    fontMaterial.rel = 'stylesheet';
+    fontMaterial.href = 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap';
+    document.head.appendChild(fontMaterial);
+  }
+
   const style = document.createElement('style');
   style.id = 'tip-styles';
   style.textContent = `
     #tip-sidebar {
       position: fixed;
-      top: 0; right: 0;
+      top: 0;
+      right: 0;
       width: 300px;
       height: 100vh;
-      background: #0F172A;
-      border-left: 1px solid #1E293B;
-      box-shadow: -4px 0 20px rgba(0,0,0,0.3);
+      background: #0D1117;
+      border-left: 1px solid #30363D;
+      box-shadow: -8px 0 28px rgba(0, 0, 0, 0.45);
       z-index: 999999;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      font-size: 13px;
-      color: #E2E8F0;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: #dfe2eb;
       display: flex;
       flex-direction: column;
-      transition: width 0.25s ease;
       overflow: hidden;
-    }
-
-    #tip-sidebar.tip-collapsed {
-      width: 42px;
     }
 
     body.tip-active {
       margin-right: 300px !important;
-      transition: margin-right 0.25s ease;
+      transition: margin-right 0.2s ease;
     }
 
-    body.tip-active.tip-collapsed {
-      margin-right: 42px !important;
-    }
-
-    /* Header */
-    #tip-sb-header {
-      background: #1E293B;
-      padding: 12px 14px;
+    #tip-shell {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid #334155;
-      flex-shrink: 0;
-      cursor: pointer;
-      user-select: none;
+      flex-direction: column;
+      height: 100%;
+      width: 100%;
+      background: #0D1117;
     }
 
-    #tip-sb-header-left {
+    #tip-topbar {
+      height: 48px;
+      padding: 0 12px;
+      background: #10141A;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    #tip-topbar-left {
       display: flex;
       align-items: center;
       gap: 8px;
-      font-weight: 700;
-      font-size: 13px;
-      color: #E2E8F0;
-      white-space: nowrap;
-      overflow: hidden;
     }
 
-    #tip-sb-header-icon { font-size: 18px; flex-shrink: 0; }
-
-    #tip-sb-toggle {
-      background: #334155;
-      border: none;
-      color: #94A3B8;
-      width: 24px; height: 24px;
-      border-radius: 6px;
-      cursor: pointer;
+    #tip-topbar-title {
       font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 0.03em;
+    }
+
+    .tip-icon-btn {
+      width: 28px;
+      height: 28px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: #c0c7d4;
+      cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      flex-shrink: 0;
+      transition: background 0.15s ease;
     }
 
-    #tip-sb-toggle:hover { background: #475569; color: #E2E8F0; }
+    .tip-icon-btn:hover {
+      background: #262a31;
+    }
 
-    /* Scrollable content */
-    #tip-sb-content {
-      flex: 1;
+    #tip-nav {
+      display: flex;
+      flex-direction: column;
+      height: calc(100% - 48px);
+      background: #0D1117;
       overflow-y: auto;
       overflow-x: hidden;
-      padding: 12px;
     }
 
-    #tip-sb-content::-webkit-scrollbar { width: 4px; }
-    #tip-sb-content::-webkit-scrollbar-track { background: #0F172A; }
-    #tip-sb-content::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
-
-    /* Section cards */
-    .tip-section {
-      background: #1E293B;
-      border-radius: 10px;
-      padding: 12px;
-      margin-bottom: 10px;
+    #tip-nav::-webkit-scrollbar {
+      display: none;
     }
 
-    .tip-section-title {
+    #tip-nav {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    .tip-nav-item {
+      border: 0;
+      width: 100%;
+      background: transparent;
+      color: #949a9f;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: background 0.15s ease;
+      text-align: left;
+    }
+
+    .tip-nav-item:hover {
+      background: #262a31;
+    }
+
+    .tip-nav-item-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .tip-nav-item-label {
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.03em;
+    }
+
+    #tip-area-wrap {
+      background: #262a31;
+      border-left: 2px solid #58a6ff;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #tip-area-head {
+      padding: 12px 16px;
+      color: #a2c9ff;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    #tip-area-head .tip-nav-item-left {
+      gap: 10px;
+    }
+
+    #tip-area-content {
+      padding: 0 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      animation: tipFadeIn 0.25s ease;
+    }
+
+    @keyframes tipFadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    #tip-pin-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      padding-top: 8px;
+    }
+
+    #tip-pin-label {
       font-size: 10px;
-      font-weight: 700;
-      color: #64748B;
       text-transform: uppercase;
-      letter-spacing: .08em;
-      margin-bottom: 10px;
+      letter-spacing: 0.1em;
+      color: #c0c7d4;
+      font-weight: 700;
+      margin-bottom: 4px;
     }
 
-    /* Score display */
-    .tip-score-row {
+    #tip-pin-code {
+      font-size: 28px;
+      font-weight: 700;
+      color: #ffffff;
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: -0.03em;
+      line-height: 1;
+    }
+
+    #tip-live-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #a2c9ff;
+      padding: 2px 8px;
+      background: #262a31;
+      border: 1px solid rgba(162, 201, 255, 0.22);
+      border-radius: 999px;
+    }
+
+    #tip-live-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: #58a6ff;
+      animation: tipPulse 1.8s infinite;
+    }
+
+    @keyframes tipPulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.35; }
+      100% { opacity: 1; }
+    }
+
+    #tip-area-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .tip-area-card {
+      background: #181c22;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .tip-area-card-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #c0c7d4;
+      font-weight: 700;
+    }
+
+    .tip-area-card-value {
+      font-size: 14px;
+      font-weight: 700;
+      color: #dfe2eb;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #tip-order-score-section {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      border-bottom: 1px solid #30363D;
+      background: #0D1117;
+    }
+
+    #tip-score-row {
       display: flex;
       align-items: center;
       gap: 12px;
-      margin-bottom: 10px;
     }
 
-    .tip-score-circle {
-      width: 60px; height: 60px;
-      border-radius: 50%;
-      border: 3px solid;
+    #tip-gauge-wrap {
+      position: relative;
+      width: 64px;
+      height: 64px;
+      flex-shrink: 0;
+    }
+
+    #tip-score-svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+
+    #tip-score-bg {
+      stroke: #1c2026;
+      stroke-width: 4;
+      fill: transparent;
+    }
+
+    #tip-score-ring {
+      stroke: #ffba42;
+      stroke-width: 4;
+      fill: transparent;
+      stroke-linecap: round;
+      stroke-dasharray: 175.9;
+      stroke-dashoffset: 175.9;
+      transition: stroke-dashoffset 0.25s ease;
+    }
+
+    #tip-score-center {
+      position: absolute;
+      inset: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      flex-shrink: 0;
     }
 
-    .tip-score-circle.low    { border-color:#22C55E; color:#22C55E; background:#052e16; }
-    .tip-score-circle.medium { border-color:#F59E0B; color:#F59E0B; background:#1c1003; }
-    .tip-score-circle.high   { border-color:#EF4444; color:#EF4444; background:#1f0707; }
+    #tip-score-value {
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1;
+      color: #fff;
+    }
 
-    .tip-score-num  { font-size: 20px; font-weight: 700; line-height: 1; }
-    .tip-score-sub  { font-size: 9px; opacity: 0.7; margin-top: 1px; }
+    #tip-score-label {
+      font-size: 8px;
+      text-transform: uppercase;
+      color: #9ea3ae;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+    }
 
-    .tip-risk-label { font-size: 15px; font-weight: 700; }
-    .tip-risk-label.low    { color: #22C55E; }
-    .tip-risk-label.medium { color: #F59E0B; }
-    .tip-risk-label.high   { color: #EF4444; }
-
-    .tip-rto-prob { font-size: 11px; color: #94A3B8; margin-top: 3px; }
-    .tip-order-meta { font-size: 11px; color: #64748B; margin-top: 3px; }
-
-    /* Action button */
-    .tip-action-btn {
-      width: 100%;
-      padding: 9px;
-      border: none;
+    #tip-flag-card {
+      flex: 1;
+      background: rgba(218, 150, 0, 0.1);
+      border: 1px solid rgba(218, 150, 0, 0.3);
       border-radius: 8px;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      margin-bottom: 8px;
-      transition: opacity 0.2s;
-    }
-    .tip-action-btn:hover { opacity: 0.85; }
-    .tip-action-btn.approve    { background:#166534; color:#4ADE80; }
-    .tip-action-btn.warn       { background:#1c1003; color:#F59E0B; border:1px solid #F59E0B; }
-    .tip-action-btn.block-cod  { background:#DC2626; color:white; }
-    .tip-action-btn.flag       { background:#1E3A5F; color:#60A5FA; }
-
-    /* Factors */
-    .tip-factor {
+      padding: 10px;
       display: flex;
-      align-items: flex-start;
-      gap: 7px;
-      padding: 5px 0;
-      border-bottom: 1px solid #0F172A;
-      font-size: 11px;
-      color: #CBD5E1;
-      line-height: 1.4;
+      align-items: center;
+      gap: 8px;
     }
-    .tip-factor:last-child { border-bottom: none; }
-    .tip-dot {
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      margin-top: 4px;
-      flex-shrink: 0;
-    }
-    .tip-dot.red   { background: #EF4444; }
-    .tip-dot.amber { background: #F59E0B; }
-    .tip-dot.green { background: #22C55E; }
 
-    /* Buyer history */
-    .tip-stat-grid {
+    #tip-flag-text {
+      font-size: 11px;
+      color: #ffba42;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      line-height: 1.25;
+    }
+
+    #tip-factor-list {
+      display: grid;
+      gap: 6px;
+    }
+
+    .tip-factor-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+    }
+
+    .tip-factor-name {
+      color: #9ea3ae;
+    }
+
+    .tip-factor-state {
+      color: #fff;
+      font-weight: 500;
+    }
+
+    #tip-buyer-wrap {
+      border-top: 1px solid #30363D;
+      border-bottom: 1px solid #30363D;
+      background: rgba(24, 28, 34, 0.3);
+    }
+
+    #tip-buyer-head,
+    #tip-area-toggle {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+    }
+
+    #tip-buyer-content,
+    #tip-area-inner {
+      padding: 0 16px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    #tip-buyer-content.collapsed,
+    #tip-area-inner.collapsed {
+      display: none;
+    }
+
+    #tip-buyer-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 8px;
-      margin-bottom: 8px;
     }
 
-    .tip-stat-box {
-      background: #0F172A;
-      border-radius: 8px;
-      padding: 8px 10px;
-      text-align: center;
-    }
-
-    .tip-stat-val {
-      font-size: 18px;
-      font-weight: 700;
-      color: #E2E8F0;
-    }
-
-    .tip-stat-val.danger { color: #EF4444; }
-    .tip-stat-val.good   { color: #22C55E; }
-
-    .tip-stat-lbl {
-      font-size: 10px;
-      color: #64748B;
-      margin-top: 2px;
-    }
-
-    .tip-profile-badge {
-      font-size: 12px;
-      font-weight: 600;
-      padding: 6px 10px;
-      background: #0F172A;
-      border-radius: 8px;
-      color: #CBD5E1;
-      text-align: center;
-      margin-bottom: 8px;
-    }
-
-    /* Area intelligence */
-    .tip-area-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 5px 0;
-      border-bottom: 1px solid #0F172A;
-      font-size: 11px;
-    }
-    .tip-area-row:last-child { border-bottom: none; }
-    .tip-area-label { color: #64748B; }
-    .tip-area-val   { color: #E2E8F0; font-weight: 600; }
-    .tip-area-val.danger { color: #EF4444; }
-    .tip-area-val.warn   { color: #F59E0B; }
-    .tip-area-val.good   { color: #22C55E; }
-
-    /* Fired rules */
-    .tip-rule-tag {
-      display: inline-block;
-      background: #1c1003;
-      color: #F59E0B;
-      border: 1px solid #F59E0B33;
-      padding: 3px 8px;
-      border-radius: 20px;
-      font-size: 10px;
-      margin: 2px 2px 2px 0;
-    }
-
-    /* Override button */
-    .tip-override-btn {
-      width: 100%;
-      padding: 7px;
-      background: transparent;
-      border: 1px solid #334155;
-      border-radius: 8px;
-      color: #64748B;
-      font-size: 11px;
-      cursor: pointer;
-      margin-top: 4px;
-      transition: all 0.2s;
-    }
-    .tip-override-btn:hover { border-color:#64748B; color:#94A3B8; }
-
-    /* Dashboard button */
-    #tip-dash-btn {
-      margin: 8px 12px 12px;
+    .tip-buyer-card {
+      background: #10141a;
+      border: 1px solid rgba(49, 53, 60, 0.3);
+      border-radius: 4px;
       padding: 10px;
-      background: #1D4ED8;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 12px;
+    }
+
+    .tip-buyer-label {
+      font-size: 10px;
+      color: #9ea3ae;
+      text-transform: uppercase;
       font-weight: 600;
-      cursor: pointer;
-      width: calc(100% - 24px);
-      transition: background 0.2s;
-      flex-shrink: 0;
-    }
-    #tip-dash-btn:hover { background: #2563EB; }
-
-    /* Privacy footer */
-    .tip-privacy {
-      font-size: 9px;
-      color: #1E293B;
-      text-align: center;
-      padding: 4px 0;
-      word-break: break-all;
     }
 
-    /* Loading */
-    .tip-loading {
-      text-align: center;
-      padding: 24px 0;
-      color: #64748B;
+    .tip-buyer-value {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      margin-top: 4px;
+      line-height: 1;
     }
-    .tip-spinner {
-      width: 20px; height: 20px;
-      border: 2px solid #1E293B;
-      border-top-color: #3B82F6;
-      border-radius: 50%;
-      animation: tip-spin 0.8s linear infinite;
-      margin: 0 auto 8px;
-    }
-    @keyframes tip-spin { to { transform: rotate(360deg); } }
 
-    /* Error */
-    .tip-error {
-      text-align: center;
-      padding: 16px 0;
-      color: #EF4444;
+    .tip-buyer-value.small {
       font-size: 12px;
+      margin-top: 6px;
     }
 
-    /* Collapsed state — show only icon */
-    #tip-sidebar.tip-collapsed #tip-sb-content,
-    #tip-sidebar.tip-collapsed #tip-dash-btn {
-      display: none;
+    #tip-risk-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
     }
 
-    #tip-sidebar.tip-collapsed #tip-sb-header-left span:not(#tip-sb-header-icon) {
-      display: none;
+    #tip-risk-chip {
+      padding: 4px 8px;
+      border-radius: 4px;
+      border: 1px solid rgba(63, 185, 80, 0.2);
+      background: rgba(63, 185, 80, 0.1);
+      color: #3FB950;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
     }
 
-    #tip-sidebar.tip-collapsed #tip-sb-header {
+    #tip-buyer-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .tip-mini-btn {
+      border: 1px solid;
+      background: transparent;
+      border-radius: 4px;
+      padding: 6px 10px;
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    #tip-blacklist { border-color: rgba(239,68,68,0.3); color: #f87171; }
+    #tip-whitelist { border-color: rgba(34,197,94,0.3); color: #4ade80; }
+
+    #tip-extension-actions {
+      padding: 16px;
+      display: grid;
+      gap: 10px;
+      background: #0D1117;
+    }
+
+    .tip-wide-action {
+      width: 100%;
+      border: 1px solid;
+      border-radius: 4px;
+      background: transparent;
+      padding: 10px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      display: flex;
+      align-items: center;
       justify-content: center;
-      padding: 12px 0;
+      gap: 8px;
+      cursor: pointer;
     }
 
-    #tip-sidebar.tip-collapsed #tip-sb-toggle {
+    #tip-delivered { border-color: rgba(34,197,94,0.5); color: #4ade80; }
+    #tip-rto { border-color: rgba(239,68,68,0.5); color: #f87171; }
+    #tip-return { border-color: rgba(234,179,8,0.5); color: #eab308; }
+
+    #tip-open-dashboard {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      color: #2F81F7;
+      font-size: 11px;
+      font-weight: 500;
+      text-decoration: none;
+    }
+
+    #tip-signal-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    #tip-signal-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #c0c7d4;
+      font-weight: 700;
+    }
+
+    #tip-signal-chips {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .tip-signal-chip {
+      background: #31353c;
+      border-radius: 6px;
+      padding: 6px 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .tip-signal-chip span:last-child {
+      font-size: 10px;
+      color: #dfe2eb;
+      font-weight: 500;
+    }
+
+    #tip-map-card {
+      width: 100%;
+      height: 96px;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #tip-map-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: grayscale(1);
+      opacity: 0.42;
+      transition: opacity 0.4s ease;
+    }
+
+    #tip-map-card:hover img {
+      opacity: 0.58;
+    }
+
+    #tip-map-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, #262a31, transparent);
+    }
+
+    #tip-map-coords {
+      position: absolute;
+      left: 8px;
+      bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 9px;
+      color: #c0c7d4;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    #tip-footer {
+      margin-top: auto;
+      border-top: 1px solid rgba(65, 71, 82, 0.25);
+      padding: 0;
+      background: #10141a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      min-height: 58px;
+    }
+
+    #tip-footer-brand {
+      font-size: 11px;
+      color: #9ea3ae;
+      font-weight: 500;
+    }
+
+    #tip-footer-copy {
+      font-size: 10px;
+      color: rgba(158,163,174,0.6);
+    }
+
+    #tip-skeleton {
       display: none;
+      padding: 16px;
+      gap: 10px;
+    }
+
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tip-shimmer {
+      background: #31353c;
+      border-radius: 6px;
+      animation: tipShimmer 1.1s ease-in-out infinite alternate;
+    }
+
+    @keyframes tipShimmer {
+      from { opacity: 0.4; }
+      to { opacity: 0.85; }
     }
   `;
   document.head.appendChild(style);
@@ -431,47 +750,281 @@ function injectSidebar(platformName) {
   const sidebar = document.createElement('div');
   sidebar.id    = 'tip-sidebar';
   sidebar.innerHTML = `
-    <div id="tip-sb-header">
-      <div id="tip-sb-header-left">
-        <span id="tip-sb-header-icon">🛡️</span>
-        <span>Trust Intelligence</span>
-      </div>
-      <button id="tip-sb-toggle">◀</button>
+    <div id="tip-shell">
+      <header id="tip-topbar">
+        <div id="tip-topbar-left">
+          <span id="tip-topbar-title" style="font-weight:700;color:#fff;letter-spacing:-0.01em;">Truvak</span>
+        </div>
+        <button class="tip-icon-btn" id="tip-collapse-btn" title="Close">
+          <span class="material-symbols-outlined" style="font-size:20px;">chevron_right</span>
+        </button>
+      </header>
+
+      <nav id="tip-nav">
+        <section id="tip-order-score-section">
+          <div id="tip-score-row">
+            <div id="tip-gauge-wrap">
+              <svg id="tip-score-svg" viewBox="0 0 64 64">
+                <circle id="tip-score-bg" cx="32" cy="32" r="28"></circle>
+                <circle id="tip-score-ring" cx="32" cy="32" r="28"></circle>
+              </svg>
+              <div id="tip-score-center">
+                <span id="tip-score-value">--</span>
+                <span id="tip-score-label">Trust</span>
+              </div>
+            </div>
+
+            <div id="tip-flag-card">
+              <span class="material-symbols-outlined" style="font-size:16px;color:#ffba42;">warning</span>
+              <span id="tip-flag-text">Awaiting score</span>
+            </div>
+          </div>
+
+          <div id="tip-factor-list">
+            <div class="tip-factor-row"><span class="tip-factor-name">Identity Check</span><span class="tip-factor-state" id="tip-factor-identity">Pending</span></div>
+            <div class="tip-factor-row"><span class="tip-factor-name">Address Strength</span><span class="tip-factor-state" id="tip-factor-address">Pending</span></div>
+            <div class="tip-factor-row"><span class="tip-factor-name">Previous RTO</span><span class="tip-factor-state" id="tip-factor-rto">Pending</span></div>
+          </div>
+        </section>
+
+        <section id="tip-buyer-wrap">
+          <button id="tip-buyer-head">
+            <span style="display:flex;align-items:center;gap:8px;"><span class="material-symbols-outlined" style="font-size:14px;color:#a2c9ff;">history</span><span style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;">Buyer History</span></span>
+            <span class="material-symbols-outlined" style="font-size:16px;color:#9ea3ae;">expand_more</span>
+          </button>
+
+          <div id="tip-buyer-content">
+            <div id="tip-buyer-grid">
+              <div class="tip-buyer-card"><div class="tip-buyer-label">Total Orders</div><div class="tip-buyer-value" id="tip-metric-total">--</div></div>
+              <div class="tip-buyer-card"><div class="tip-buyer-label">RTO Count</div><div class="tip-buyer-value" id="tip-metric-rto">--</div></div>
+              <div class="tip-buyer-card"><div class="tip-buyer-label">Avg Score</div><div class="tip-buyer-value" id="tip-metric-avg">--</div></div>
+              <div class="tip-buyer-card"><div class="tip-buyer-label">First Order</div><div class="tip-buyer-value small" id="tip-metric-first">--</div></div>
+            </div>
+
+            <div id="tip-risk-row">
+              <span id="tip-risk-chip">Low Risk</span>
+              <div id="tip-buyer-actions">
+                <button class="tip-mini-btn" id="tip-blacklist">BLACKLIST</button>
+                <button class="tip-mini-btn" id="tip-whitelist">WHITELIST</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <button class="tip-nav-item" id="tip-nav-score">
+          <span class="tip-nav-item-left">
+            <span class="material-symbols-outlined" style="font-size:20px;">analytics</span>
+            <span class="tip-nav-item-label">Order Score</span>
+          </span>
+          <span class="material-symbols-outlined" style="font-size:14px;">chevron_right</span>
+        </button>
+
+        <button class="tip-nav-item" id="tip-nav-history">
+          <span class="tip-nav-item-left">
+            <span class="material-symbols-outlined" style="font-size:20px;">history</span>
+            <span class="tip-nav-item-label">Buyer History</span>
+          </span>
+          <span class="material-symbols-outlined" style="font-size:14px;">chevron_right</span>
+        </button>
+
+        <section id="tip-area-wrap">
+          <button id="tip-area-toggle">
+            <span class="tip-nav-item-left">
+              <span class="material-symbols-outlined" style="font-size:20px;">explore</span>
+              <span class="tip-nav-item-label">Area Intelligence</span>
+            </span>
+            <span class="material-symbols-outlined" style="font-size:14px;">expand_more</span>
+          </button>
+
+          <div id="tip-area-inner">
+          <div id="tip-area-content">
+            <div id="tip-pin-header">
+              <div>
+                <div id="tip-pin-label">Current PIN Code</div>
+                <div id="tip-pin-code">------</div>
+              </div>
+              <div id="tip-live-pill">
+                <span id="tip-live-dot"></span>
+                <span id="tip-live-text">Live</span>
+              </div>
+            </div>
+
+            <div id="tip-area-grid">
+              <div class="tip-area-card">
+                <span class="tip-area-card-label">PIN Tier</span>
+                <span class="tip-area-card-value" id="tip-tier">--</span>
+              </div>
+              <div class="tip-area-card">
+                <span class="tip-area-card-label">RTO Rate</span>
+                <span class="tip-area-card-value" id="tip-rto-rate">--</span>
+              </div>
+              <div class="tip-area-card">
+                <span class="tip-area-card-label">COD Pref</span>
+                <span class="tip-area-card-value" id="tip-cod-pref">--</span>
+              </div>
+              <div class="tip-area-card">
+                <span class="tip-area-card-label">District</span>
+                <span class="tip-area-card-value" id="tip-district">--</span>
+              </div>
+            </div>
+
+            <div id="tip-signal-wrap">
+              <div id="tip-signal-title">Census Signals</div>
+              <div id="tip-signal-chips">
+                <div class="tip-signal-chip">
+                  <span class="material-symbols-outlined" style="font-size:14px;color:#ffba42;">wifi</span>
+                  <span id="tip-signal-internet">-- Internet</span>
+                </div>
+                <div class="tip-signal-chip">
+                  <span class="material-symbols-outlined" style="font-size:14px;color:#a2c9ff;">location_city</span>
+                  <span id="tip-signal-urban">-- Urban</span>
+                </div>
+                <div class="tip-signal-chip" style="grid-column:1 / span 2;">
+                  <span class="material-symbols-outlined" style="font-size:14px;color:#aec8ef;">bolt</span>
+                  <span id="tip-signal-electric">-- Elec.</span>
+                </div>
+              </div>
+            </div>
+
+            <div id="tip-map-card">
+              <img id="tip-map-image" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBcp6iSA30W5Anm2eoBVZZVdjGhNG70scz3Ife-nX7RdCrqFJ5DbWrqEv5FvlheC29DJWpFdZnKKu4xlBV_xiuQEQjkFGeAfgm0F4-h8dNJhPZq2TIPiCkU8smsZhO_WsgfJ5NOaR-YYDe62Gd1tg6rZ_hAbUVrILK4SlgvwKFZ5o7nF81nFwkbXZXRZKytL64DzP48uZWw9xlF3HeyiygWfJ7kX_D1Fqn04l8GdqskimhSAOWNMFGG9RQeKK0LbY3XS3oR-GENMQ" alt="Area map">
+              <div id="tip-map-overlay"></div>
+              <div id="tip-map-coords">
+                <span class="material-symbols-outlined" style="font-size:12px;color:#a2c9ff;">location_on</span>
+                <span id="tip-coords">Lat: --, Lon: --</span>
+              </div>
+            </div>
+          </div>
+          </div>
+        </section>
+
+        <section id="tip-extension-actions">
+          <button class="tip-wide-action" id="tip-delivered"><span class="material-symbols-outlined" style="font-size:18px;">check_circle</span><span>Delivered</span></button>
+          <button class="tip-wide-action" id="tip-rto"><span class="material-symbols-outlined" style="font-size:18px;">cancel</span><span>RTO</span></button>
+          <button class="tip-wide-action" id="tip-return"><span class="material-symbols-outlined" style="font-size:18px;">assignment_return</span><span>Return</span></button>
+          <a href="#" id="tip-open-dashboard"><span>Open in Dashboard</span><span class="material-symbols-outlined" style="font-size:14px;">open_in_new</span></a>
+        </section>
+
+        <div style="margin-top:auto;border-top:1px solid rgba(65,71,82,0.25);">
+          <button class="tip-footer-btn" id="tip-settings-btn" style="border:0;background:transparent;width:100%;display:flex;align-items:center;gap:10px;padding:12px 16px;color:#94a3b8;cursor:pointer;">
+            <span class="material-symbols-outlined" style="font-size:20px;">settings</span>
+            <span>Settings</span>
+          </button>
+          <button class="tip-footer-btn" id="tip-support-btn" style="border:0;background:transparent;width:100%;display:flex;align-items:center;gap:10px;padding:12px 16px;color:#94a3b8;cursor:pointer;">
+            <span class="material-symbols-outlined" style="font-size:20px;">help</span>
+            <span>Support</span>
+          </button>
+        </div>
+
+        <div id="tip-skeleton">
+          <div class="tip-shimmer" style="height:24px;width:48%;"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div class="tip-shimmer" style="height:64px;"></div>
+            <div class="tip-shimmer" style="height:64px;"></div>
+          </div>
+          <div class="tip-shimmer" style="height:40px;width:100%;"></div>
+        </div>
+      </nav>
+
+      <footer id="tip-footer">
+        <p id="tip-footer-brand">Truvak by Snoxx Tech</p>
+        <p id="tip-footer-copy">© 2024 Snoxx Tech</p>
+      </footer>
     </div>
-    <div id="tip-sb-content">
-      <div class="tip-loading">
-        <div class="tip-spinner"></div>
-        <div>Waiting for order...</div>
-      </div>
-    </div>
-    <button id="tip-dash-btn">📊 Open Dashboard</button>
   `;
 
   document.body.appendChild(sidebar);
   sidebarInjected = true;
 
-  // Toggle collapse
-  document.getElementById('tip-sb-header').addEventListener('click', toggleSidebar);
-  document.getElementById('tip-sb-toggle').addEventListener('click', (e) => {
-    e.stopPropagation();
-    toggleSidebar();
+  const postOutcome = async (result) => {
+    if (!currentOrderId) return;
+    try {
+      await fetch(`${TIP_CONFIG.apiUrl}/v1/outcome`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          order_id: currentOrderId,
+          merchant_id: TIP_CONFIG.merchantId,
+          raw_buyer_id: currentHashedId || currentOrderId,
+          result,
+        }),
+      });
+    } catch (err) {
+      console.warn('[TIP] Failed to log outcome:', err);
+    }
+  };
+
+  document.getElementById('tip-collapse-btn').addEventListener('click', () => {
+    const sidebar = document.getElementById('tip-sidebar');
+    if (sidebar) sidebar.style.display = 'none';
+    document.body.classList.remove('tip-active');
   });
 
-  // Dashboard button
-  document.getElementById('tip-dash-btn').addEventListener('click', () => {
+  document.getElementById('tip-nav-score').addEventListener('click', () => {
     window.open(TIP_CONFIG.dashboardUrl, '_blank');
+  });
+
+  document.getElementById('tip-nav-history').addEventListener('click', () => {
+    window.open(TIP_CONFIG.dashboardUrl, '_blank');
+  });
+
+  document.getElementById('tip-settings-btn').addEventListener('click', () => {
+    window.open(TIP_CONFIG.dashboardUrl, '_blank');
+  });
+
+  document.getElementById('tip-support-btn').addEventListener('click', () => {
+    window.open(TIP_CONFIG.dashboardUrl, '_blank');
+  });
+
+  document.getElementById('tip-open-dashboard').addEventListener('click', (e) => {
+    e.preventDefault();
+    window.open(TIP_CONFIG.dashboardUrl, '_blank');
+  });
+
+  document.getElementById('tip-buyer-head').addEventListener('click', () => {
+    const body = document.getElementById('tip-buyer-content');
+    if (body) body.classList.toggle('collapsed');
+  });
+
+  document.getElementById('tip-area-toggle').addEventListener('click', () => {
+    const body = document.getElementById('tip-area-inner');
+    if (body) body.classList.toggle('collapsed');
+  });
+
+  document.getElementById('tip-delivered').addEventListener('click', async () => {
+    await postOutcome('delivered');
+    document.getElementById('tip-delivered').style.opacity = '0.8';
+  });
+
+  document.getElementById('tip-rto').addEventListener('click', async () => {
+    await postOutcome('rto');
+    document.getElementById('tip-rto').style.opacity = '0.8';
+  });
+
+  document.getElementById('tip-return').addEventListener('click', async () => {
+    await postOutcome('return');
+    document.getElementById('tip-return').style.opacity = '0.8';
+  });
+
+  document.getElementById('tip-blacklist').addEventListener('click', () => {
+    const chip = document.getElementById('tip-risk-chip');
+    chip.textContent = 'High Risk';
+    chip.style.color = '#f87171';
+    chip.style.background = 'rgba(239,68,68,0.12)';
+    chip.style.borderColor = 'rgba(239,68,68,0.22)';
+  });
+
+  document.getElementById('tip-whitelist').addEventListener('click', () => {
+    const chip = document.getElementById('tip-risk-chip');
+    chip.textContent = 'Low Risk';
+    chip.style.color = '#4ade80';
+    chip.style.background = 'rgba(34,197,94,0.12)';
+    chip.style.borderColor = 'rgba(34,197,94,0.22)';
   });
 }
 
 function toggleSidebar() {
-  const sidebar = document.getElementById('tip-sidebar');
-  const toggle  = document.getElementById('tip-sb-toggle');
-  const body    = document.body;
-
-  isCollapsed = !isCollapsed;
-  sidebar.classList.toggle('tip-collapsed', isCollapsed);
-  body.classList.toggle('tip-collapsed', isCollapsed);
-  if (toggle) toggle.textContent = isCollapsed ? '▶' : '◀';
+  // Intentionally kept for compatibility with older calls.
 }
 
 // ── MutationObserver ──────────────────────────────────────────────────────────
@@ -504,7 +1057,7 @@ function extractOrderData() {
   // Order ID
   let orderId = null;
   const amzMatch = text.match(/\d{3}-\d{7}-\d{7}/);
-  const fkMatch  = text.match(/OD-\d{10,}/);
+  const fkMatch  = text.match(/\bOD-?[A-Z0-9]{10,}\b/i);
   if (amzMatch) orderId = amzMatch[0];
   else if (fkMatch) orderId = fkMatch[0];
   if (!orderId) return null;
@@ -659,8 +1212,28 @@ async function tryExtractAndScore() {
 }
 
 async function showMerchantSummary() {
-  const content = document.getElementById('tip-sb-content');
-  if (!content) return;
+  const scoreValue = document.getElementById('tip-score-value');
+  const scoreRing = document.getElementById('tip-score-ring');
+  const flagText = document.getElementById('tip-flag-text');
+  const factorIdentity = document.getElementById('tip-factor-identity');
+  const factorAddress = document.getElementById('tip-factor-address');
+  const factorRto = document.getElementById('tip-factor-rto');
+  const pinNode = document.getElementById('tip-pin-code');
+  const liveText = document.getElementById('tip-live-text');
+  const liveDot = document.getElementById('tip-live-dot');
+  const tierNode = document.getElementById('tip-tier');
+  const rtoNode = document.getElementById('tip-rto-rate');
+  const codNode = document.getElementById('tip-cod-pref');
+  const districtNode = document.getElementById('tip-district');
+  const internetNode = document.getElementById('tip-signal-internet');
+  const urbanNode = document.getElementById('tip-signal-urban');
+  const electricNode = document.getElementById('tip-signal-electric');
+  const coordsNode = document.getElementById('tip-coords');
+  const skeleton = document.getElementById('tip-skeleton');
+
+  if (!scoreValue || !scoreRing || !flagText || !factorIdentity || !factorAddress || !factorRto || !pinNode || !liveText || !liveDot || !tierNode || !rtoNode || !codNode || !districtNode || !internetNode || !urbanNode || !electricNode || !coordsNode || !skeleton) {
+    return;
+  }
 
   if (isSummaryInFlight) return;
   if (Date.now() - lastSummaryAt < 15000 && currentViewMode === 'summary') return;
@@ -668,12 +1241,25 @@ async function showMerchantSummary() {
   isSummaryInFlight = true;
   currentViewMode = 'summary-loading';
 
-  content.innerHTML = `
-    <div class="tip-loading">
-      <div class="tip-spinner"></div>
-      <div>Loading merchant data...</div>
-    </div>
-  `;
+  scoreValue.textContent = '--';
+  scoreRing.style.strokeDashoffset = '175.9';
+  flagText.textContent = 'Awaiting score';
+  factorIdentity.textContent = 'Pending';
+  factorAddress.textContent = 'Pending';
+  factorRto.textContent = 'Pending';
+
+  skeleton.style.display = 'flex';
+  pinNode.textContent = '------';
+  liveText.textContent = 'Syncing';
+  liveDot.style.background = '#ffba42';
+  tierNode.textContent = '--';
+  rtoNode.textContent = '--';
+  codNode.textContent = '--';
+  districtNode.textContent = '--';
+  internetNode.textContent = '-- Internet';
+  urbanNode.textContent = '-- Urban';
+  electricNode.textContent = '-- Elec.';
+  coordsNode.textContent = 'Lat: --, Lon: --';
 
   try {
     const r = await fetch(
@@ -684,102 +1270,60 @@ async function showMerchantSummary() {
     const orders = data.orders || [];
 
     if (orders.length === 0) {
-      content.innerHTML = `
-        <div class="tip-section">
-          <div class="tip-section-title">Merchant Summary</div>
-          <div style="text-align:center;padding:20px;color:#64748B;font-size:12px;">
-            No orders scored yet.<br>Open an order page to begin.
-          </div>
-        </div>
-      `;
+      scoreValue.textContent = '--';
+      scoreRing.style.strokeDashoffset = '175.9';
+      flagText.textContent = 'Open order to score';
+      liveText.textContent = 'Idle';
+      liveDot.style.background = '#8b919d';
+      tierNode.textContent = 'Waiting';
+      rtoNode.textContent = '--';
+      codNode.textContent = '--';
+      districtNode.textContent = 'Open order';
+      skeleton.style.display = 'none';
       return;
     }
 
     const total = orders.length;
-    const blocked = orders.filter((o) => o.recommended_action === 'block_cod').length;
-    const highRisk = orders.filter((o) => o.risk_level === 'HIGH').length;
-    const avgScore = (orders.reduce((s, o) => s + o.score, 0) / total).toFixed(1);
-    const totalSales = orders.reduce((s, o) => s + (o.order_value || 0), 0);
-    const saved = blocked * 300;
+    const avgScoreRaw = orders.reduce((sum, o) => sum + (o.score || 0), 0) / total;
+    const avgScore = Math.round(avgScoreRaw);
+    const avgRto = Math.max(1, Math.min(35, Math.round(orders.filter((o) => o.risk_level === 'HIGH').length / total * 100)));
     const codOrders = orders.filter((o) => o.is_cod === 1).length;
+    const codPct = Math.round((codOrders / total) * 100);
 
-    content.innerHTML = `
-      <div class="tip-section">
-        <div class="tip-section-title">Merchant Summary</div>
-        <div class="tip-stat-grid">
-          <div class="tip-stat-box">
-            <div class="tip-stat-val good">${total}</div>
-            <div class="tip-stat-lbl">Orders Scored</div>
-          </div>
-          <div class="tip-stat-box">
-            <div class="tip-stat-val">${avgScore}</div>
-            <div class="tip-stat-lbl">Avg Trust Score</div>
-          </div>
-          <div class="tip-stat-box">
-            <div class="tip-stat-val danger">${highRisk}</div>
-            <div class="tip-stat-lbl">High Risk</div>
-          </div>
-          <div class="tip-stat-box">
-            <div class="tip-stat-val danger">${blocked}</div>
-            <div class="tip-stat-lbl">COD Blocked</div>
-          </div>
-        </div>
-      </div>
+    scoreValue.textContent = String(avgScore);
+    scoreRing.style.stroke = avgScore >= 70 ? '#3FB950' : avgScore >= 40 ? '#ffba42' : '#f87171';
+    scoreRing.style.strokeDashoffset = `${175.9 - (175.9 * Math.max(0, Math.min(100, avgScore))) / 100}`;
+    flagText.textContent = avgScore >= 70 ? 'Approve - low risk' : avgScore >= 40 ? 'Flag - review before shipping' : 'Block - high risk order';
+    factorIdentity.textContent = avgScore >= 70 ? 'Verified' : 'Check manually';
+    factorIdentity.style.color = avgScore >= 70 ? '#4ade80' : '#ffba42';
+    factorAddress.textContent = avgRto <= 15 ? 'Strong' : avgRto <= 25 ? 'Moderate' : 'Weak';
+    factorAddress.style.color = avgRto <= 15 ? '#4ade80' : avgRto <= 25 ? '#ffba42' : '#f87171';
+    factorRto.textContent = avgRto <= 15 ? 'None Found' : `${avgRto}% corridor risk`;
 
-      <div class="tip-section">
-        <div class="tip-section-title">Financial Impact</div>
-        <div class="tip-area-row">
-          <span class="tip-area-label">Total Sales Scored</span>
-          <span class="tip-area-val">₹${totalSales.toLocaleString('en-IN')}</span>
-        </div>
-        <div class="tip-area-row">
-          <span class="tip-area-label">Estimated Savings</span>
-          <span class="tip-area-val good">₹${saved.toLocaleString('en-IN')}</span>
-        </div>
-        <div class="tip-area-row">
-          <span class="tip-area-label">COD Orders</span>
-          <span class="tip-area-val">${codOrders} of ${total}</span>
-        </div>
-        <div class="tip-area-row">
-          <span class="tip-area-label">RTO Prevention</span>
-          <span class="tip-area-val good">${((blocked / total) * 100).toFixed(0)}%</span>
-        </div>
-      </div>
-
-      <div class="tip-section">
-        <div class="tip-section-title">Risk Breakdown</div>
-        <div class="tip-area-row">
-          <span class="tip-area-label">🔴 High Risk</span>
-          <span class="tip-area-val danger">${highRisk} orders</span>
-        </div>
-        <div class="tip-area-row">
-          <span class="tip-area-label">🟡 Medium Risk</span>
-          <span class="tip-area-val warn">
-            ${orders.filter((o) => o.risk_level === 'MEDIUM').length} orders
-          </span>
-        </div>
-        <div class="tip-area-row">
-          <span class="tip-area-label">🟢 Low Risk</span>
-          <span class="tip-area-val good">
-            ${orders.filter((o) => o.risk_level === 'LOW').length} orders
-          </span>
-        </div>
-      </div>
-
-      <div style="font-size:11px;color:#475569;text-align:center;padding:8px 0;">
-        Open an order to see trust score
-      </div>
-    `;
+    pinNode.textContent = 'LIVE-DATA';
+    liveText.textContent = 'Live';
+    liveDot.style.background = '#58a6ff';
+    tierNode.textContent = 'Merchant';
+    rtoNode.textContent = `${avgRto}%`;
+    codNode.textContent = `${codPct}%`;
+    districtNode.textContent = 'Across stores';
+    internetNode.textContent = 'Realtime Link';
+    urbanNode.textContent = `${total} Orders`;
+    electricNode.textContent = `${codOrders} COD`;
+    coordsNode.textContent = 'Live merchant telemetry';
+    skeleton.style.display = 'none';
     currentViewMode = 'summary';
   } catch {
-    content.innerHTML = `
-      <div class="tip-section">
-        <div class="tip-section-title">Merchant Summary</div>
-        <div style="text-align:center;padding:16px;color:#64748B;font-size:11px;">
-          Open an order to start scoring
-        </div>
-      </div>
-    `;
+    scoreValue.textContent = '--';
+    scoreRing.style.strokeDashoffset = '175.9';
+    flagText.textContent = 'Backend unavailable';
+    factorIdentity.textContent = 'Unavailable';
+    factorAddress.textContent = 'Unavailable';
+    factorRto.textContent = 'Unavailable';
+    liveText.textContent = 'Offline';
+    liveDot.style.background = '#ffb4ab';
+    districtNode.textContent = 'Backend unavailable';
+    skeleton.style.display = 'none';
     currentViewMode = 'summary';
   } finally {
     lastSummaryAt = Date.now();
@@ -789,198 +1333,148 @@ async function showMerchantSummary() {
 
 // ── Loading state ─────────────────────────────────────────────────────────────
 function showLoading(orderId) {
-  const content = document.getElementById('tip-sb-content');
-  if (!content) return;
-  content.innerHTML = `
-    <div class="tip-loading">
-      <div class="tip-spinner"></div>
-      <div>Scoring ${orderId}...</div>
-    </div>
-  `;
+  const scoreValue = document.getElementById('tip-score-value');
+  const scoreRing = document.getElementById('tip-score-ring');
+  const flagText = document.getElementById('tip-flag-text');
+  const factorIdentity = document.getElementById('tip-factor-identity');
+  const factorAddress = document.getElementById('tip-factor-address');
+  const factorRto = document.getElementById('tip-factor-rto');
+  const pinNode = document.getElementById('tip-pin-code');
+  const liveText = document.getElementById('tip-live-text');
+  const liveDot = document.getElementById('tip-live-dot');
+  const districtNode = document.getElementById('tip-district');
+  const skeleton = document.getElementById('tip-skeleton');
+  if (!scoreValue || !scoreRing || !flagText || !factorIdentity || !factorAddress || !factorRto || !pinNode || !liveText || !liveDot || !districtNode || !skeleton) return;
+
+  scoreValue.textContent = '--';
+  scoreRing.style.strokeDashoffset = '175.9';
+  flagText.textContent = 'Scoring in progress';
+  factorIdentity.textContent = 'Pending';
+  factorAddress.textContent = 'Pending';
+  factorRto.textContent = 'Pending';
+
+  pinNode.textContent = String(orderId).slice(-6);
+  liveText.textContent = 'Syncing';
+  liveDot.style.background = '#ffba42';
+  districtNode.textContent = 'Scoring area';
+  skeleton.style.display = 'flex';
 }
 
 // ── Error state ───────────────────────────────────────────────────────────────
 function showError(msg) {
-  const content = document.getElementById('tip-sb-content');
-  if (!content) return;
-  content.innerHTML = `
-    <div class="tip-error">
-      <div style="font-size:20px;margin-bottom:8px;">⚠️</div>
-      <div>Could not score order</div>
-      <div style="color:#64748B;margin-top:4px;font-size:10px;">${msg}</div>
-      <div style="color:#475569;margin-top:8px;font-size:10px;">
-        Is the API running on :8000?
-      </div>
-    </div>
-  `;
+  const scoreValue = document.getElementById('tip-score-value');
+  const scoreRing = document.getElementById('tip-score-ring');
+  const flagText = document.getElementById('tip-flag-text');
+  const factorIdentity = document.getElementById('tip-factor-identity');
+  const factorAddress = document.getElementById('tip-factor-address');
+  const factorRto = document.getElementById('tip-factor-rto');
+  const liveText = document.getElementById('tip-live-text');
+  const liveDot = document.getElementById('tip-live-dot');
+  const districtNode = document.getElementById('tip-district');
+  const skeleton = document.getElementById('tip-skeleton');
+  if (!scoreValue || !scoreRing || !flagText || !factorIdentity || !factorAddress || !factorRto || !liveText || !liveDot || !districtNode || !skeleton) return;
+
+  scoreValue.textContent = '--';
+  scoreRing.style.strokeDashoffset = '175.9';
+  flagText.textContent = 'Flag - API error';
+  factorIdentity.textContent = 'Unavailable';
+  factorAddress.textContent = 'Unavailable';
+  factorRto.textContent = 'Unavailable';
+
+  liveText.textContent = 'Error';
+  liveDot.style.background = '#ffb4ab';
+  districtNode.textContent = `Error: ${msg}`;
+  skeleton.style.display = 'none';
 }
 
 // ── Render full sidebar ───────────────────────────────────────────────────────
 function renderSidebar(score, history, area, orderData) {
-  const content = document.getElementById('tip-sb-content');
-  if (!content) return;
+  const scoreValueNode = document.getElementById('tip-score-value');
+  const scoreRing = document.getElementById('tip-score-ring');
+  const flagText = document.getElementById('tip-flag-text');
+  const factorIdentity = document.getElementById('tip-factor-identity');
+  const factorAddress = document.getElementById('tip-factor-address');
+  const factorRto = document.getElementById('tip-factor-rto');
+  const buyerTotalNode = document.getElementById('tip-metric-total');
+  const buyerRtoNode = document.getElementById('tip-metric-rto');
+  const buyerAvgNode = document.getElementById('tip-metric-avg');
+  const buyerFirstNode = document.getElementById('tip-metric-first');
+  const riskChip = document.getElementById('tip-risk-chip');
+  const pinNode = document.getElementById('tip-pin-code');
+  const liveText = document.getElementById('tip-live-text');
+  const liveDot = document.getElementById('tip-live-dot');
+  const tierNode = document.getElementById('tip-tier');
+  const rtoNode = document.getElementById('tip-rto-rate');
+  const codNode = document.getElementById('tip-cod-pref');
+  const districtNode = document.getElementById('tip-district');
+  const internetNode = document.getElementById('tip-signal-internet');
+  const urbanNode = document.getElementById('tip-signal-urban');
+  const electricNode = document.getElementById('tip-signal-electric');
+  const coordsNode = document.getElementById('tip-coords');
+  const skeleton = document.getElementById('tip-skeleton');
 
-  const s         = score.score || 0;
-  const risk      = score.risk_level || 'UNKNOWN';
-  const action    = score.recommended_action || 'approve';
-  const factors   = score.factors || [];
-  const rules     = score.fired_rules || [];
-  const rtoProb   = score.model_rto_prob || 0;
-  const hashedId  = score.hashed_buyer_id || '';
-  const riskClass = s >= 70 ? 'low' : s >= 40 ? 'medium' : 'high';
-
-  // Action config
-  const actions = {
-    approve:     { cls:'approve',   label:'✅ Safe to Approve'        },
-    warn:        { cls:'warn',      label:'⚠️ Proceed with Caution'   },
-    block_cod:   { cls:'block-cod', label:'🚫 Block COD Payment'      },
-    flag_review: { cls:'flag',      label:'🔎 Flag for Manual Review'  },
-  };
-  const ac = actions[action] || actions.approve;
-
-  // Factor dot colors
-  const dotColor = f => {
-    const fl = f.toLowerCase();
-    if (fl.includes('high') || fl.includes('rto') || fl.includes('block'))
-      return 'red';
-    if (fl.includes('cod') || fl.includes('value') || fl.includes('festive'))
-      return 'amber';
-    return 'green';
-  };
-
-  // ── Section 1: Current Order ──────────────────────────────────────────────
-  const section1 = `
-    <div class="tip-section">
-      <div class="tip-section-title">Current Order</div>
-      <div class="tip-score-row">
-        <div class="tip-score-circle ${riskClass}">
-          <div class="tip-score-num">${s}</div>
-          <div class="tip-score-sub">/100</div>
-        </div>
-        <div>
-          <div class="tip-risk-label ${riskClass}">${risk} RISK</div>
-          <div class="tip-rto-prob">RTO Prob: ${(rtoProb*100).toFixed(1)}%</div>
-          <div class="tip-order-meta">
-            ${orderData.is_cod ? '💵 COD' : '💳 Prepaid'} ·
-            ₹${orderData.order_value.toLocaleString('en-IN')}
-          </div>
-          <div class="tip-order-meta">PIN: ${orderData.pin_code}</div>
-        </div>
-      </div>
-
-      <button class="tip-action-btn ${ac.cls}">${ac.label}</button>
-
-      <div style="margin-bottom:6px;">
-        ${factors.map(f => `
-          <div class="tip-factor">
-            <div class="tip-dot ${dotColor(f)}"></div>
-            <span>${f}</span>
-          </div>
-        `).join('') || '<div class="tip-factor"><div class="tip-dot green"></div><span>No risk factors</span></div>'}
-      </div>
-
-      ${rules.length ? `
-        <div style="margin-top:6px;">
-          ${rules.map(r => `<span class="tip-rule-tag">⚡ ${r}</span>`).join('')}
-        </div>
-      ` : ''}
-
-      <button class="tip-override-btn" onclick="this.previousElementSibling && (this.textContent='✅ Manually Approved')">
-        Override — Mark as Safe
-      </button>
-    </div>
-  `;
-
-  // ── Section 2: Buyer History ──────────────────────────────────────────────
-  let section2 = '';
-  if (history) {
-    const rtoColor      = history.rto_count >= 2 ? 'danger' : history.rto_count === 1 ? 'warn' : 'good';
-    const ordersColor   = history.total_orders >= 3 ? 'good' : '';
-    section2 = `
-      <div class="tip-section">
-        <div class="tip-section-title">Buyer History</div>
-        <div class="tip-profile-badge">${history.risk_profile}</div>
-        <div class="tip-stat-grid">
-          <div class="tip-stat-box">
-            <div class="tip-stat-val ${ordersColor}">${history.total_orders}</div>
-            <div class="tip-stat-lbl">Total Orders</div>
-          </div>
-          <div class="tip-stat-box">
-            <div class="tip-stat-val ${rtoColor}">${history.rto_count}</div>
-            <div class="tip-stat-lbl">RTOs</div>
-          </div>
-          <div class="tip-stat-box">
-            <div class="tip-stat-val">${history.delivered_count}</div>
-            <div class="tip-stat-lbl">Delivered</div>
-          </div>
-          <div class="tip-stat-box">
-            <div class="tip-stat-val">${history.avg_score}</div>
-            <div class="tip-stat-lbl">Avg Score</div>
-          </div>
-        </div>
-        ${history.recent_orders.length > 0 ? `
-          <div style="font-size:10px;color:#64748B;margin-top:4px;">Recent orders:</div>
-          ${history.recent_orders.slice(0,3).map(o => `
-            <div class="tip-area-row">
-              <span class="tip-area-label">${o.order_id}</span>
-              <span class="tip-area-val ${o.score < 40 ? 'danger' : o.score < 70 ? 'warn' : 'good'}">
-                ${o.score}
-              </span>
-            </div>
-          `).join('')}
-        ` : '<div style="font-size:11px;color:#475569;text-align:center;">First order from this buyer</div>'}
-      </div>
-    `;
+  if (!scoreValueNode || !scoreRing || !flagText || !factorIdentity || !factorAddress || !factorRto || !buyerTotalNode || !buyerRtoNode || !buyerAvgNode || !buyerFirstNode || !riskChip || !pinNode || !liveText || !liveDot || !tierNode || !rtoNode || !codNode || !districtNode || !internetNode || !urbanNode || !electricNode || !coordsNode || !skeleton) {
+    return;
   }
 
-  // ── Section 3: Area Intelligence ──────────────────────────────────────────
-  let section3 = '';
-  if (area) {
-    const rtoColor = area.area_rto_rate >= 30 ? 'danger' : area.area_rto_rate >= 20 ? 'warn' : 'good';
-    const codColor = area.cod_preference >= 60 ? 'danger' : area.cod_preference >= 45 ? 'warn' : 'good';
-    section3 = `
-      <div class="tip-section">
-        <div class="tip-section-title">Area Intelligence — PIN ${area.pin_code}</div>
-        <div class="tip-area-row">
-          <span class="tip-area-label">Zone</span>
-          <span class="tip-area-val">${area.tier_label}</span>
-        </div>
-        <div class="tip-area-row">
-          <span class="tip-area-label">Area Risk</span>
-          <span class="tip-area-val ${rtoColor}">${area.area_risk}</span>
-        </div>
-        <div class="tip-area-row">
-          <span class="tip-area-label">Area RTO Rate</span>
-          <span class="tip-area-val ${rtoColor}">${area.area_rto_rate}%</span>
-        </div>
-        <div class="tip-area-row">
-          <span class="tip-area-label">COD Preference</span>
-          <span class="tip-area-val ${codColor}">${area.cod_preference}%</span>
-        </div>
-        <div class="tip-area-row">
-          <span class="tip-area-label">Internet Access</span>
-          <span class="tip-area-val">${area.internet_pct}%</span>
-        </div>
-        <div class="tip-area-row">
-          <span class="tip-area-label">Mobile Ownership</span>
-          <span class="tip-area-val">${area.mobile_pct}%</span>
-        </div>
-        <div class="tip-area-row">
-          <span class="tip-area-label">Urban Ratio</span>
-          <span class="tip-area-val">${area.urban_pct}%</span>
-        </div>
-      </div>
-    `;
+  const scoreValue = Math.max(0, Math.min(100, Math.round(score?.score || 0)));
+  const riskLevel = score?.risk_level || 'LOW';
+  const historyOrders = history?.total_orders ?? 0;
+  const historyRto = history?.rto_count ?? 0;
+  const historyAvg = history?.avg_score ?? scoreValue;
+
+  scoreValueNode.textContent = String(scoreValue);
+  scoreRing.style.stroke = riskLevel === 'HIGH' ? '#f87171' : riskLevel === 'MEDIUM' ? '#ffba42' : '#3FB950';
+  scoreRing.style.strokeDashoffset = `${175.9 - (175.9 * scoreValue) / 100}`;
+  flagText.textContent = riskLevel === 'HIGH' ? 'Block - high risk order' : riskLevel === 'MEDIUM' ? 'Flag - Review before shipping' : 'Approve - low risk';
+
+  factorIdentity.textContent = scoreValue >= 70 ? 'Verified' : scoreValue >= 40 ? 'Cross-check' : 'Mismatch';
+  factorIdentity.style.color = scoreValue >= 70 ? '#4ade80' : scoreValue >= 40 ? '#ffba42' : '#f87171';
+  factorAddress.textContent = area?.area_rto_rate !== undefined && area.area_rto_rate <= 15 ? 'Strong' : area?.area_rto_rate !== undefined && area.area_rto_rate <= 25 ? 'Moderate' : 'Weak';
+  factorAddress.style.color = area?.area_rto_rate !== undefined && area.area_rto_rate <= 15 ? '#4ade80' : area?.area_rto_rate !== undefined && area.area_rto_rate <= 25 ? '#ffba42' : '#f87171';
+  factorRto.textContent = historyRto === 0 ? 'None Found' : `${historyRto} previous`; 
+
+  buyerTotalNode.textContent = String(historyOrders);
+  buyerRtoNode.textContent = String(historyRto);
+  buyerAvgNode.textContent = String(historyAvg);
+  buyerFirstNode.textContent = history?.recent_orders?.length ? "History" : "New";
+  riskChip.textContent = riskLevel === 'HIGH' ? 'High Risk' : riskLevel === 'MEDIUM' ? 'Medium Risk' : 'Low Risk';
+  riskChip.style.color = riskLevel === 'HIGH' ? '#f87171' : riskLevel === 'MEDIUM' ? '#ffba42' : '#4ade80';
+  riskChip.style.background = riskLevel === 'HIGH' ? 'rgba(239,68,68,0.12)' : riskLevel === 'MEDIUM' ? 'rgba(234,179,8,0.12)' : 'rgba(34,197,94,0.12)';
+  riskChip.style.borderColor = riskLevel === 'HIGH' ? 'rgba(239,68,68,0.22)' : riskLevel === 'MEDIUM' ? 'rgba(234,179,8,0.22)' : 'rgba(34,197,94,0.22)';
+
+  const pin = area?.pin_code || orderData.pin_code || '------';
+  const tier = area?.tier_label || (area?.pin_tier ? `Tier ${area.pin_tier}` : 'Tier --');
+  const rto = area?.area_rto_rate !== undefined ? `${area.area_rto_rate}%` : '--';
+  const cod = area?.cod_preference !== undefined ? `${area.cod_preference}%` : (orderData.is_cod ? '100%' : '0%');
+  const district = area?.district || area?.district_name || area?.area_name || 'Unknown';
+  const internet = area?.internet_pct !== undefined ? `${area.internet_pct}% Internet` : '-- Internet';
+  const urban = area?.urban_pct !== undefined ? `${area.urban_pct}% Urban` : '-- Urban';
+  const electric = area?.electricity_pct !== undefined
+    ? `${area.electricity_pct}% Elec.`
+    : area?.electrification_pct !== undefined
+      ? `${area.electrification_pct}% Elec.`
+      : '-- Elec.';
+
+  pinNode.textContent = String(pin);
+  liveText.textContent = 'Live';
+  liveDot.style.background = '#58a6ff';
+  tierNode.textContent = tier;
+  rtoNode.textContent = rto;
+  codNode.textContent = cod;
+  districtNode.textContent = district;
+  internetNode.textContent = internet;
+  urbanNode.textContent = urban;
+  electricNode.textContent = electric;
+
+  const defaultCoords = 'Lat: 12.9716, Lon: 77.5946';
+  if (area?.latitude !== undefined && area?.longitude !== undefined) {
+    coordsNode.textContent = `Lat: ${Number(area.latitude).toFixed(4)}, Lon: ${Number(area.longitude).toFixed(4)}`;
+  } else {
+    coordsNode.textContent = defaultCoords;
   }
 
-  // ── Privacy footer ────────────────────────────────────────────────────────
-  const footer = `
-    <div class="tip-privacy">
-      🔐 ${hashedId.substring(0, 24)}...
-    </div>
-  `;
-
-  content.innerHTML = section1 + section2 + section3 + footer;
+  skeleton.style.display = 'none';
 }
 
 // ── Start ─────────────────────────────────────────────────────────────────────

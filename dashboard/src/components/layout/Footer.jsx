@@ -1,16 +1,13 @@
 export default function Footer() {
   return (
-    <footer className="fixed bottom-0 left-64 right-0 h-10 bg-surface-container-lowest border-t border-outline-variant/10 flex items-center justify-between px-8 text-[10px] font-mono text-slate-500 uppercase tracking-widest z-40">
-      <div className="flex items-center gap-6">
-        <div className="flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse"></span>
-          <span>System Synchronizing</span>
-        </div>
-        <span>v4.2.0-STABLE</span>
+    <footer className="w-full md:w-[calc(100%-16rem)] py-6 mt-auto bg-[#0d1117] border-t border-[#31353c]/15 flex flex-col md:flex-row justify-between items-center px-8 md:ml-64 font-['Inter'] text-xs font-medium uppercase tracking-widest text-gray-500">
+      <div className="flex items-center gap-6 mb-4 md:mb-0">
+        <span>© 2024 Truvak Intelligent Systems</span>
       </div>
-      <div className="flex items-center gap-6">
-        <span>Latency: 24 ms</span>
-        <span>Uptime: 99.9%</span>
+      <div className="flex gap-8">
+        <a className="hover:text-white transition-opacity duration-150 cursor-pointer" href="#">Documentation</a>
+        <a className="hover:text-white transition-opacity duration-150 cursor-pointer" href="#">Privacy Policy</a>
+        <a className="hover:text-white transition-opacity duration-150 cursor-pointer" href="#">Support</a>
       </div>
     </footer>
   );
