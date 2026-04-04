@@ -2,7 +2,7 @@
 
   <img src="https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Shield/3D/shield_3d.png" width="120" alt="Truvak Shield Logo">
 
-  # 🛡️ Truvak — Trust Intelligence Platform
+  # 🛡️ Truvak — Trust Intelligence Platform (Developed by SNOXX TECH)
 
   **AI-powered RTO risk scoring & Review Intelligence system for Indian e-commerce sellers.**
 
@@ -17,7 +17,7 @@
   </p>
 
   <p align="center">
-    <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square">
+    <img src="https://img.shields.io/badge/License-SNOXX%20TECH-green?style=flat-square">
     <img src="https://img.shields.io/badge/Version-1.0.0-blue?style=flat-square">
     <img src="https://img.shields.io/badge/Status-Active-brightgreen?style=flat-square">
   </p>
@@ -285,7 +285,7 @@ ngrok http 8000
 
 <div align="center">
 
-  **© 2026 Truvak — Trust Intelligence Platform. All rights reserved.**
+  **© 2026 SNOXX TECH. All rights reserved.**
 
   *Built for Indian E-Commerce Sellers — Fighting RTOs & Fake Reviews with AI.*
 
