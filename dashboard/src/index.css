@@ -15,6 +15,9 @@
   ::-webkit-scrollbar-track { background: #10141a; }
   ::-webkit-scrollbar-thumb { background: #31353c; border-radius: 10px; }
   .mono { font-family: 'JetBrains Mono', monospace; }
+  /* Hide scrollbar but keep scroll functionality */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   
   .skeleton-shimmer {
     position: relative;
@@ -36,6 +39,17 @@
 @keyframes shimmer {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(100%); }
+}
+
+/* Skeleton pulse — used by ReviewAnalysis page */
+.skeleton-pulse {
+  background: linear-gradient(90deg, #181c22 25%, #262a31 50%, #181c22 75%);
+  background-size: 200% 100%;
+  animation: skeletonPulse 1.5s infinite linear;
+}
+@keyframes skeletonPulse {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 /* Splash Animations */

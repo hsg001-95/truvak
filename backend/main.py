@@ -13,6 +13,7 @@ import numpy as np
 from backend.db import init_db, get_connection
 from backend.privacy import hash_buyer_id
 from backend.rule_engine import RuleEngine, Rule
+from backend.reviews_router import router as reviews_router
 
 import hmac
 import hashlib
@@ -52,6 +53,8 @@ EXTENSION_ORIGIN = os.getenv("EXTENSION_ORIGIN", "").strip()
 allow_origins = [
     "http://127.0.0.1:8080",
     "http://localhost:8080",
+    "http://127.0.0.1:5173",
+    "http://localhost:5173",
     "http://127.0.0.1:8501",
     "http://localhost:8501",
     "https://sellercentral.amazon.in",
@@ -69,6 +72,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(reviews_router)
 
 # ── Load model on startup ─────────────────────────────────────────────────────
 MODEL_PATH = os.path.join(os.path.dirname(__file__), '..', 'ml', 'rto_model_v1.pkl')

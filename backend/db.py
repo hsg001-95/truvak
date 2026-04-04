@@ -59,6 +59,30 @@ def init_db():
             pin_code TEXT NOT NULL,
             order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE TABLE IF NOT EXISTS review_analyses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            merchant_id TEXT NOT NULL,
+            product_id TEXT NOT NULL,
+            analysis_timestamp TEXT NOT NULL,
+            total_reviews INTEGER NOT NULL,
+            fake_count INTEGER NOT NULL,
+            authenticity_score REAL NOT NULL,
+            fake_review_percentage REAL NOT NULL,
+            burst_detected INTEGER NOT NULL,
+            template_detected INTEGER NOT NULL,
+            ring_detected INTEGER NOT NULL,
+            overall_verdict TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS review_feedback (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            merchant_id TEXT NOT NULL,
+            product_id TEXT NOT NULL,
+            review_text_hash TEXT NOT NULL,
+            merchant_verdict TEXT NOT NULL,
+            submitted_at TEXT NOT NULL
+        );
     """)
 
     conn.commit()

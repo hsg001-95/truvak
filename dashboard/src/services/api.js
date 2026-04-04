@@ -96,3 +96,39 @@ export const logOutcome = async (order_id, merchant_id, buyer_id, result) => {
     result
   });
 };
+
+// ── Review Intelligence API ────────────────────────────────────────────────
+
+/**
+ * POST /v1/reviews/analyze
+ * payload: { reviews: ReviewInput[], merchant_id, product_url? }
+ */
+export const analyzeReviews = async (payload) => {
+  return await apiPost('/v1/reviews/analyze', payload);
+};
+
+/**
+ * GET /v1/reviews/product/{product_id}
+ * Returns the latest ProductIntegrityResult for a product.
+ */
+export const getProductAnalysis = async (productId) => {
+  if (!productId) return null;
+  return await apiGet(`/v1/reviews/product/${productId}`);
+};
+
+/**
+ * POST /v1/reviews/feedback
+ * payload: { review_text, merchant_verdict: "genuine"|"fake", merchant_id, product_id }
+ */
+export const submitReviewFeedback = async (payload) => {
+  return await apiPost('/v1/reviews/feedback', payload);
+};
+
+/**
+ * GET /v1/reviews/health
+ * Returns model load status for all 3 review stages.
+ */
+export const getReviewsHealth = async () => {
+  return await apiGet('/v1/reviews/health');
+};
+
