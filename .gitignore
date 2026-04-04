@@ -3,6 +3,7 @@ data/olist/
 venv/
 __pycache__/
 .env
+/not_in_use/
 
 # Generated review datasets and model artifacts
 ml/reviews/data/

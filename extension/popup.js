@@ -5,6 +5,12 @@ const collapseButton = document.getElementById('collapseButton');
 const automateButton = document.getElementById('automateButton');
 const logsButton = document.getElementById('logsButton');
 const logsSection = document.getElementById('logsSection');
+const openDashboardButton = document.getElementById('openDashboardButton');
+const workspaceDashboardButton = document.getElementById('workspaceDashboardButton');
+const helpButton = document.getElementById('helpButton');
+const settingsButton = document.getElementById('settingsButton');
+const legalLink = document.getElementById('legalLink');
+const privacyLink = document.getElementById('privacyLink');
 
 const workspaceName = document.getElementById('workspaceName');
 const workspaceId = document.getElementById('workspaceId');
@@ -15,6 +21,7 @@ const latencyValue = document.getElementById('latencyValue');
 const resourceValue = document.getElementById('resourceValue');
 const orderHistory = document.getElementById('orderHistory');
 const MERCHANT_ID = localStorage.getItem('tip_merchant_id') || 'merchant_amazon';
+const DASHBOARD_URL = localStorage.getItem('tip_dashboard_url') || 'http://localhost:8501';
 
 let isCollapsed = false;
 let logsVisible = false;
@@ -142,8 +149,43 @@ function toggleCollapse() {
         : 'chevron_right';
 }
 
+function openDashboard() {
+    try {
+        if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.create) {
+            chrome.tabs.create({ url: DASHBOARD_URL });
+            return;
+        }
+    } catch (error) {
+        // Fall back to window.open if tabs API is unavailable.
+    }
+
+    window.open(DASHBOARD_URL, '_blank');
+}
+
+function openDashboardOnKeyboard(event) {
+    if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        openDashboard();
+    }
+}
+
 collapseButton.addEventListener('click', toggleCollapse);
 logsButton.addEventListener('click', toggleLogs);
 automateButton.addEventListener('click', loadOrders);
+if (openDashboardButton) openDashboardButton.addEventListener('click', openDashboard);
+if (workspaceDashboardButton) {
+    workspaceDashboardButton.addEventListener('click', openDashboard);
+    workspaceDashboardButton.addEventListener('keydown', openDashboardOnKeyboard);
+}
+if (helpButton) helpButton.addEventListener('click', openDashboard);
+if (settingsButton) settingsButton.addEventListener('click', openDashboard);
+if (legalLink) legalLink.addEventListener('click', (event) => {
+    event.preventDefault();
+    openDashboard();
+});
+if (privacyLink) privacyLink.addEventListener('click', (event) => {
+    event.preventDefault();
+    openDashboard();
+});
 
 loadOrders();

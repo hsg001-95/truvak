@@ -565,7 +565,7 @@
                             <p class="workspace-name" id="workspaceName">Neural_Kernel_v2</p>
                             <p class="workspace-id" id="workspaceId">#TRV-882-X9</p>
                         </div>
-                        <div class="workspace-icon">
+                        <div class="workspace-icon" id="workspaceDashboardButton" role="button" tabindex="0" title="Open dashboard">
                             <span class="material-symbols-outlined">dashboard</span>
                         </div>
                     </div>
@@ -580,6 +580,10 @@
             </section>
 
             <section class="quick-grid">
+                <button class="quick-btn" id="openDashboardButton">
+                    <span class="material-symbols-outlined">open_in_new</span>
+                    <span>Dashboard</span>
+                </button>
                 <button class="quick-btn" id="automateButton">
                     <span class="material-symbols-outlined">bolt</span>
                     <span>Automate</span>
@@ -631,8 +635,8 @@
             <div class="footer-row">
                 <span class="footer-brand">Truvak by <span>Snoxx Tech</span></span>
                 <div class="footer-icons">
-                    <button title="Help" aria-label="Help"><span class="material-symbols-outlined" style="font-size:14px;">help</span></button>
-                    <button title="Settings" aria-label="Settings"><span class="material-symbols-outlined" style="font-size:14px;">settings</span></button>
+                    <button id="helpButton" title="Help" aria-label="Help"><span class="material-symbols-outlined" style="font-size:14px;">help</span></button>
+                    <button id="settingsButton" title="Settings" aria-label="Settings"><span class="material-symbols-outlined" style="font-size:14px;">settings</span></button>
                 </div>
             </div>
             <div class="footer-row">
