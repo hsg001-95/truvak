@@ -17,6 +17,7 @@ let isSummaryInFlight = false;
 let lastSummaryAt     = 0;
 let currentViewMode   = 'init';
 let extensionEnabled  = true;
+let lastBestsellerBootstrapAt = 0;
 
 // ── Site config — universal pattern matching ──────────────────────────────────
 const SITE_CONFIGS = {
@@ -53,13 +54,20 @@ function getDefaultMerchantIdByHost() {
 // ── Init ──────────────────────────────────────────────────────────────────────
 async function init() {
   const config = getSiteConfig();
-  if (!config || config.role !== 'merchant') return;
+  if (!config) return;
 
   await loadRuntimeConfig();
   if (!extensionEnabled) {
     console.log('[TIP] Extension disabled until sign-in toggle is enabled in popup');
     return;
   }
+
+  if (config.role === 'customer' && isAmazonBestsellerPage()) {
+    await handleBestsellerBootstrap();
+    return;
+  }
+
+  if (config.role !== 'merchant') return;
 
   console.log(`[TIP] Activated on ${config.platform}`);
   injectSidebarStyles();
@@ -1043,6 +1051,88 @@ function isOrderDetailUrl(url = window.location.href) {
     url.includes('/orders/') ||
     url.includes('order.html')
   );
+}
+
+function isAmazonBestsellerPage(url = window.location.href) {
+  return /amazon\.in\/(gp\/)?bestsellers/i.test(url);
+}
+
+function extractBestsellersPage() {
+  const cards = [
+    ...document.querySelectorAll('[data-asin]'),
+    ...document.querySelectorAll('.p13n-sc-uncoverable-faceout, .zg-item-immersion')
+  ];
+
+  const items = [];
+  for (const card of cards) {
+    const asin = (card.getAttribute('data-asin') || '').trim();
+    const priceElement = card.querySelector(
+      '.p13n-sc-price, .a-price .a-offscreen, ._cDEzb_p13n-sc-price_3mJ9Z'
+    );
+    const titleElement = card.querySelector(
+      '.p13n-sc-truncate-desktop-type2, ._cDEzb_p13n-sc-truncate-desktop_nJ0Hg, .a-size-base'
+    );
+    const rankElement = card.querySelector('.zg-bdg-text, .p13n-sc-badge-label');
+
+    if (!asin || !priceElement) continue;
+
+    const priceText = (priceElement.textContent || '').trim();
+    const price = parseFloat(priceText.replace(/₹|,/g, ''));
+    if (!Number.isFinite(price) || price <= 0) continue;
+
+    const title = titleElement ? (titleElement.textContent || '').trim().slice(0, 80) : null;
+
+    let rank = null;
+    if (rankElement) {
+      const rankText = (rankElement.textContent || '').replace(/[^0-9]/g, '');
+      const parsedRank = parseInt(rankText, 10);
+      rank = Number.isFinite(parsedRank) ? parsedRank : null;
+    }
+
+    items.push({
+      product_id: asin,
+      price,
+      title,
+      category: null,
+      rank,
+    });
+  }
+
+  return items.filter((item) => item.product_id && item.price > 0);
+}
+
+async function postBestsellerBatch(items) {
+  const response = await fetch(`${TIP_CONFIG.apiUrl}/v1/product/bestseller-batch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      items,
+      category_page: window.location.pathname,
+      page_url: window.location.href,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Bestseller batch API ${response.status}`);
+  }
+
+  return response.json();
+}
+
+async function handleBestsellerBootstrap() {
+  if (!isAmazonBestsellerPage()) return;
+  if (Date.now() - lastBestsellerBootstrapAt < 15000) return;
+
+  const items = extractBestsellersPage();
+  if (!items.length) return;
+
+  lastBestsellerBootstrapAt = Date.now();
+  try {
+    const result = await postBestsellerBatch(items);
+    console.log('[TIP] Bestseller batch sent', result);
+  } catch (error) {
+    console.error('[TIP] Error sending bestseller batch:', error);
+  }
 }
 
 // ── Extract order data ────────────────────────────────────────────────────────
