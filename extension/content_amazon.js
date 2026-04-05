@@ -51,6 +51,15 @@ function getDefaultMerchantIdByHost() {
   return 'merchant-amazon';
 }
 
+if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
+  chrome.runtime.onMessage.addListener((message) => {
+    if (!message || message.action !== 'triggerBestsellerScrape') return;
+    handleBestsellerBootstrap().catch((error) => {
+      console.warn('[TIP] Failed to trigger bestseller bootstrap from background', error);
+    });
+  });
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 async function init() {
   const config = getSiteConfig();
