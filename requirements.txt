@@ -60,3 +60,5 @@ watchdog==6.0.0
 streamlit-authenticator==0.4.2
 plotly==6.6.0
 xgboost==2.1.4
+sqlalchemy==2.0.41
+bcrypt==4.3.0

@@ -1,4 +1,5 @@
 data/trust.db
+data/truvak_customer.db
 data/olist/
 venv/
 __pycache__/
