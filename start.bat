@@ -2,7 +2,7 @@
 echo.
 echo  ╔══════════════════════════════════════════╗
 echo  ║   TRUST INTELLIGENCE PLATFORM           ║
-echo  ║   Starting all services...              ║
+echo  ║   Starting core services...             ║
 echo  ╚══════════════════════════════════════════╝
 echo.
 
@@ -11,8 +11,8 @@ start "Trust API" cmd /k "cd /d %~dp0 && venv\Scripts\python.exe -m uvicorn back
 
 timeout /t 3 /nobreak > nul
 
-echo  [2/3] Starting Streamlit dashboard on port 8501...
-start "Trust Dashboard" cmd /k "cd /d %~dp0 && venv\Scripts\python.exe -m streamlit run dashboard/app.py"
+echo  [2/3] Starting Customer app on port 5174...
+start "Trust Customer App" cmd /k "cd /d %~dp0customer && npm run dev"
 
 timeout /t 2 /nobreak > nul
 
@@ -27,10 +27,10 @@ echo  ║   All services started!                 ║
 echo  ║                                         ║
 echo  ║   API      : http://127.0.0.1:8000      ║
 echo  ║   API Docs : http://127.0.0.1:8000/docs ║
-echo  ║   Dashboard: http://localhost:8501      ║
+echo  ║   Customer : http://127.0.0.1:5174      ║
 echo  ║   ngrok UI : http://127.0.0.1:4040      ║
 echo  ╚══════════════════════════════════════════╝
 echo.
-echo  Login: merchant_shopify / Trust@2024
+echo  Note: Run npm install once in customer/ before first launch.
 echo.
 pause
