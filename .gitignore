@@ -9,3 +9,7 @@ __pycache__/
 # Generated review datasets and model artifacts
 ml/reviews/data/
 ml/reviews/models/
+
+# Customer app generated artifacts
+customer/node_modules/
+customer/dist/

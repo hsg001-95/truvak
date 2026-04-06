@@ -32,6 +32,7 @@
 
 1. **Return to Origin (RTO) Fraud** — Flags risky Cash-on-Delivery orders before they ship, using a LightGBM model trained on India-specific Census socioeconomic data and 28,000+ orders.
 2. **Fake Review Manipulation** — Detects fraudulent reviews using a 3-stage ML ensemble (TF-IDF + LightGBM + XGBoost) with SHAP explainability.
+3. **Consumer Trust Portal** — Empowers buyers with a dedicated application to track product price history across platforms, maintain a price drop watchlist, and analyze their spending and trusted seller profiles.
 
 It integrates natively with **Amazon Seller Central** via a Chrome extension and supports **Shopify** via live webhooks.
 
@@ -86,7 +87,18 @@ A fully migrated, Vite-powered React 18 SPA replacing the legacy Streamlit UI.
 | 🔔 **Popup Panel** | One-click scoring from the extension popup with login and order scoring form. |
 | 🔗 **Live API Connectivity** | Connects to your local FastAPI backend via your configured Ngrok public URL. |
 
-### 🟣 Mock Seller Interfaces
+### 🟣 Truvak Customer Application *(New)*
+A specialized Vite-powered React 18 SPA built for consumers to track their own trust metrics.
+
+| Feature | Description |
+|---|---|
+| 🔐 **Customer Auth** | Secure raw SQLite-based authentication with SHA-256 hashed passwords and email addresses. |
+| 💸 **Spend Analysis** | Visual dashboards and charts tracking consumer spending history and trusted seller profiles. |
+| 🏷️ **Price Watchlist** | Monitor specific products across platforms (Amazon/Flipkart) with configurable price-drop alerts. |
+| 📊 **Price Intelligence** | Analyze 15-day price history, high/low summaries, and fair-price deal indicators for any tracked product. |
+| 🕵️ **Seller Intel** | Buyers can verify platform sellers and track their overall credibility score. |
+
+### ⚪ Mock Seller Interfaces
 High-fidelity interactive mocks used for integration testing and demos:
 
 | Mock | Location | Description |
@@ -104,17 +116,26 @@ MiniProject2026/
 │   ├── backend/              # FastAPI — REST API server
 │   │   ├── main.py           # Core RTO scoring endpoints (/v1/*)
 │   │   ├── reviews_router.py # Review Intelligence endpoints (/v1/reviews/*)
+│   │   ├── customer_*_router.py # Customer auth, data APIs (/v1/customer/*)
+│   │   ├── price_router.py   # Product price intelligence APIs
+│   │   ├── watchlist_router.py # Buyer's price drop watchlist
+│   │   ├── seller_intel_router.py # Seller credibility lookups
 │   │   ├── rule_engine.py    # Configurable rule override system
 │   │   ├── shopify_integration.py  # Shopify order fetching & webhook processing
 │   │   ├── privacy.py        # SHA-256 buyer ID hashing
-│   │   └── db.py             # SQLite DB — trust_scores, outcomes, reviews tables
+│   │   ├── db.py             # SQLite DB — trust_scores, outcomes, reviews tables
+│   │   └── customer_schema.py# Customer database definitions and indexes
 │   │
-│   ├── dashboard/            # React 18 + Vite SPA
+│   ├── dashboard/            # React 18 + Vite SPA (Merchant)
 │   │   └── src/
 │   │       ├── pages/        # 13 dashboard pages (See route table above)
 │   │       ├── components/   # Layout, Sidebar, SplashScreen, UI components
 │   │       └── services/     # API client (axios → FastAPI)
 │   │
+│   ├── customer/             # React 18 + Vite SPA (Consumer)
+│   │   └── src/
+│   │       ├── pages/        # BuyerProfile, SpendAnalysis, Watchlist, etc.
+│   │       └── components/   # Consumer UI components
 │   ├── ml/
 │   │   ├── rto_model_v1.pkl  # Trained LightGBM RTO model
 │   │   ├── train_model.py    # Model training pipeline
@@ -249,6 +270,9 @@ ngrok http 8000
 | `GET` | `/v1/reviews/product/{product_id}` | Get last analysis for a product |
 | `POST` | `/v1/reviews/feedback` | Submit merchant review label feedback |
 | `GET` | `/v1/reviews/health` | Review ML pipeline health check |
+| `POST` | `/v1/customer/login` | Consumer authentication |
+| `GET` | `/v1/watchlist/{customer_id}` | Retrieve buyer's price drop watchlist |
+| `GET` | `/v1/prices/{product_id}/{platform}` | Retrieve product price intelligence |
 
 > Full interactive docs available at **http://127.0.0.1:8000/docs** when the backend is running.
 
