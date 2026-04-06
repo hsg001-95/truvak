@@ -13,6 +13,7 @@ const SECTION_ORDER = [
 const state = {
   authToken: '',
   pageContext: null,
+  productData: null,
   sidebar: null,
   contentArea: null,
   collapseButton: null,
@@ -359,6 +360,66 @@ async function fetchSectionData(sectionId) {
   }
 }
 
+async function ensureProductData() {
+  if (state.productData) return state.productData;
+
+  if (!window.TruvakExtractor || typeof window.TruvakExtractor.extractPageData !== 'function') {
+    return null;
+  }
+
+  const platform = state.pageContext?.platform;
+  if (!platform) return null;
+
+  try {
+    state.productData = await window.TruvakExtractor.extractPageData(platform);
+    return state.productData;
+  } catch (error) {
+    console.warn('[TIP] Failed to extract product data for sidebar sections', error);
+    return null;
+  }
+}
+
+async function tryRenderDarkPatternsLocally() {
+  if (!window.TruvakDarkPatternDetector) return false;
+
+  const hasRunner = typeof window.TruvakDarkPatternDetector.runDarkPatternDetection === 'function';
+  const hasBuilder = typeof window.TruvakDarkPatternDetector.buildDarkPatternHTML === 'function';
+  if (!hasRunner || !hasBuilder) return false;
+
+  const productData = await ensureProductData();
+  const productId =
+    productData?.asin ||
+    productData?.productId ||
+    state.pageContext?.submode ||
+    'unknown-product';
+
+  const originalPrice = Number(productData?.currentPrice || 0);
+  const platform = state.pageContext?.platform || 'unknown';
+
+  try {
+    const patterns = window.TruvakDarkPatternDetector.runDarkPatternDetection(
+      productId,
+      platform,
+      originalPrice
+    );
+
+    const html = window.TruvakDarkPatternDetector.buildDarkPatternHTML(patterns);
+    if (html) {
+      renderSection('dark-patterns', html);
+    } else {
+      renderSection(
+        'dark-patterns',
+        '<div style="font-size:12px;color:#8B949E;">No obvious dark patterns detected on this page.</div>'
+      );
+    }
+
+    return true;
+  } catch (error) {
+    console.warn('[TIP] Local dark-pattern detection failed, falling back to API', error);
+    return false;
+  }
+}
+
 function renderSection(sectionId, htmlContent = '') {
   const section = document.getElementById(`truvak-section-${sectionId}`);
   if (!section) return;
@@ -374,6 +435,118 @@ function showSectionError(sectionId, message) {
   renderSection(sectionId, `<div class="truvak-error-message">${safeMessage}</div>`);
 }
 
+function ensureActionsControls() {
+  const actionsSection = document.getElementById('truvak-section-actions');
+  if (!actionsSection) return;
+
+  if (actionsSection.querySelector('#truvak-order-sync-controls')) return;
+
+  const controls = document.createElement('div');
+  controls.id = 'truvak-order-sync-controls';
+  controls.style.marginTop = '8px';
+  controls.innerHTML = `
+    <div style="border:1px solid #30363D;border-radius:10px;padding:10px;background:#0d1117;">
+      <button id="truvak-order-sync-btn" type="button" style="width:100%;border:1px solid #30363D;background:#132238;color:#e6edf3;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:600;cursor:pointer;">
+        Sync Orders and Check Competitor Prices
+      </button>
+      <div id="truvak-competitor-summary" style="margin-top:8px;color:#8B949E;font-size:11px;"></div>
+      <div id="sync-section" style="margin-top:8px;"></div>
+    </div>
+  `;
+
+  actionsSection.appendChild(controls);
+}
+
+function summarizeCompetitorResults(results) {
+  const flat = (Array.isArray(results) ? results : []).flat();
+  const found = flat.filter((r) => r && r.found && Number.isFinite(Number(r.price)));
+
+  if (!found.length) {
+    return 'No competitor price matches found for recent synced orders.';
+  }
+
+  const sorted = found.slice().sort((a, b) => Number(a.price) - Number(b.price));
+  const best = sorted[0];
+  const avg = found.reduce((acc, item) => acc + Number(item.price), 0) / found.length;
+
+  return `Found ${found.length} matches across competitors. Best: INR ${Number(best.price).toFixed(2)} on ${String(best.platform || 'unknown')}. Avg: INR ${avg.toFixed(2)}.`;
+}
+
+function attachActionsHandlers() {
+  const syncButton = document.getElementById('truvak-order-sync-btn');
+  const summaryNode = document.getElementById('truvak-competitor-summary');
+  if (!syncButton || syncButton.dataset.bound === '1') return;
+
+  syncButton.dataset.bound = '1';
+  syncButton.addEventListener('click', async () => {
+    if (!window.TruvakOrderScraper || typeof window.TruvakOrderScraper.runOrderScraper !== 'function') {
+      if (summaryNode) {
+        summaryNode.textContent = 'Order scraper module not loaded.';
+      }
+      return;
+    }
+
+    const platform = state.pageContext?.platform || '';
+    syncButton.disabled = true;
+    syncButton.style.opacity = '0.75';
+    if (summaryNode) {
+      summaryNode.textContent = 'Syncing orders...';
+    }
+
+    try {
+      const syncResult = await window.TruvakOrderScraper.runOrderScraper(platform);
+      const orders = Array.isArray(syncResult?.orders) ? syncResult.orders : [];
+
+      if (!orders.length) {
+        if (summaryNode) {
+          summaryNode.textContent = 'No orders available for competitor checks.';
+        }
+        return;
+      }
+
+      if (summaryNode) {
+        summaryNode.textContent = 'Running competitor checks on latest synced orders...';
+      }
+
+      const latestOrders = orders
+        .slice()
+        .sort((a, b) => String(b.orderDate || '').localeCompare(String(a.orderDate || '')))
+        .slice(0, 3);
+
+      const checkResults = await Promise.all(
+        latestOrders.map(async (order) => {
+          const productData =
+            typeof window.TruvakOrderScraper.mapOrderToProductData === 'function'
+              ? window.TruvakOrderScraper.mapOrderToProductData(order, platform)
+              : {
+                title: `Order ${String(order.orderId || '').slice(0, 8)}`,
+                current_price: order.orderValue,
+                brand: platform,
+              };
+
+          if (typeof window.TruvakOrderScraper.fetchCompetitorPrices !== 'function') {
+            return [];
+          }
+
+          return window.TruvakOrderScraper.fetchCompetitorPrices(productData);
+        })
+      );
+
+      if (summaryNode) {
+        summaryNode.textContent = summarizeCompetitorResults(checkResults);
+      }
+    } catch (error) {
+      console.error('[TIP] Failed to sync orders and run competitor checks', error);
+      if (summaryNode) {
+        summaryNode.textContent = 'Failed to complete sync/check flow. Try again.';
+      }
+    } finally {
+      syncButton.disabled = false;
+      syncButton.style.opacity = '1';
+    }
+  });
+}
+
 async function renderAllSections() {
   for (const sectionId of SECTION_ORDER) {
     showSectionLoading(sectionId);
@@ -381,6 +554,11 @@ async function renderAllSections() {
 
   await Promise.all(
     SECTION_ORDER.map(async (sectionId) => {
+      if (sectionId === 'dark-patterns') {
+        const renderedLocally = await tryRenderDarkPatternsLocally();
+        if (renderedLocally) return;
+      }
+
       const data = await fetchSectionData(sectionId);
       if (data && typeof data.content === 'string') {
         renderSection(sectionId, data.content);
@@ -391,10 +569,14 @@ async function renderAllSections() {
       }
     })
   );
+
+  ensureActionsControls();
+  attachActionsHandlers();
 }
 
 async function init(pageContext = {}) {
   state.pageContext = pageContext;
+  state.productData = null;
   state.isOpen = true;
 
   await getAuthToken();
@@ -449,6 +631,7 @@ function destroy() {
   state.collapseButton = null;
   state.splashScreen = null;
   state.pageContext = null;
+  state.productData = null;
   state.isOpen = true;
 }
 

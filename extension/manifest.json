@@ -7,11 +7,14 @@
     "storage",
     "activeTab",
     "tabs",
-    "scripting"
+    "scripting",
+    "alarms",
+    "notifications"
   ],
   "host_permissions": [
     "http://127.0.0.1:8000/*",
     "http://localhost:8000/*",
+    "https://api.truvak.com/*",
     "https://sellercentral.amazon.in/*",
     "https://sellercentral.amazon.com/*",
     "https://seller.flipkart.com/*",
@@ -46,6 +49,11 @@
         "http://127.0.0.1/*"
       ],
       "js": [
+        "customer_sidebar.js",
+        "customer_extractor.js",
+        "section_price_intel.js",
+        "dark_pattern_detector.js",
+        "order_scraper.js",
         "content_amazon.js",
         "content_flipkart.js"
       ],

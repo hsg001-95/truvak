@@ -53,7 +53,13 @@ function getDefaultMerchantIdByHost() {
 
 if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
   chrome.runtime.onMessage.addListener((message) => {
-    if (!message || message.action !== 'triggerBestsellerScrape') return;
+    if (!message) return;
+    const shouldBootstrap =
+      message.action === 'triggerBestsellerScrape' ||
+      message.type === 'BOOTSTRAP_SCRAPE';
+
+    if (!shouldBootstrap) return;
+
     handleBestsellerBootstrap().catch((error) => {
       console.warn('[TIP] Failed to trigger bestseller bootstrap from background', error);
     });
@@ -1067,47 +1073,150 @@ function isAmazonBestsellerPage(url = window.location.href) {
 }
 
 function extractBestsellersPage() {
-  const cards = [
-    ...document.querySelectorAll('[data-asin]'),
-    ...document.querySelectorAll('.p13n-sc-uncoverable-faceout, .zg-item-immersion')
+  const categoryPage =
+    (document.querySelector('h1')?.textContent || '').trim() ||
+    window.location.pathname
+      .split('/')
+      .filter((segment) => segment && !segment.includes('bestsellers'))
+      .pop() ||
+    'bestsellers';
+
+  const cardSelectors = [
+    '[data-asin]:not([data-asin=""])',
+    '.p13n-sc-uncoverable-faceout',
+    '.zg-item-immersion',
+    '.s-result-item[data-asin]'
   ];
 
+  const priceSelectors = [
+    '.p13n-sc-price',
+    '._cDEzb_p13n-sc-price_3mJ9Z',
+    '.a-price .a-offscreen',
+    '.a-size-base.a-color-price'
+  ];
+
+  const titleSelectors = [
+    '.p13n-sc-truncate-desktop-type2',
+    '._cDEzb_p13n-sc-truncate-desktop_nJ0Hg',
+    '.a-size-base-plus',
+    '[class*="p13n-sc-truncate"]'
+  ];
+
+  const rankSelectors = [
+    '.zg-bdg-text',
+    '.p13n-sc-badge-label',
+    '[class*="zg-badge"]'
+  ];
+
+  const seenAsins = new Set();
   const items = [];
-  for (const card of cards) {
-    const asin = (card.getAttribute('data-asin') || '').trim();
-    const priceElement = card.querySelector(
-      '.p13n-sc-price, .a-price .a-offscreen, ._cDEzb_p13n-sc-price_3mJ9Z'
-    );
-    const titleElement = card.querySelector(
-      '.p13n-sc-truncate-desktop-type2, ._cDEzb_p13n-sc-truncate-desktop_nJ0Hg, .a-size-base'
-    );
-    const rankElement = card.querySelector('.zg-bdg-text, .p13n-sc-badge-label');
 
-    if (!asin || !priceElement) continue;
+  for (const cardSelector of cardSelectors) {
+    const cards = document.querySelectorAll(cardSelector);
+    cards.forEach((card) => {
+      let asin = (card.getAttribute('data-asin') || '').trim();
 
-    const priceText = (priceElement.textContent || '').trim();
-    const price = parseFloat(priceText.replace(/₹|,/g, ''));
-    if (!Number.isFinite(price) || price <= 0) continue;
+      if (!asin) {
+        const href = card.getAttribute('href') || card.querySelector('a[href*="/dp/"]')?.getAttribute('href') || '';
+        asin = href.match(/\/dp\/([A-Z0-9]{10})/i)?.[1] || '';
+      }
 
-    const title = titleElement ? (titleElement.textContent || '').trim().slice(0, 80) : null;
+      if (!asin || seenAsins.has(asin)) return;
 
-    let rank = null;
-    if (rankElement) {
-      const rankText = (rankElement.textContent || '').replace(/[^0-9]/g, '');
-      const parsedRank = parseInt(rankText, 10);
-      rank = Number.isFinite(parsedRank) ? parsedRank : null;
-    }
+      let priceText = '';
+      for (const priceSelector of priceSelectors) {
+        priceText = (card.querySelector(priceSelector)?.textContent || '').trim();
+        if (priceText) break;
+      }
 
-    items.push({
-      product_id: asin,
-      price,
-      title,
-      category: null,
-      rank,
+      const price = parseFloat(priceText.replace(/[₹,\s]/g, ''));
+      if (!Number.isFinite(price) || price <= 0) return;
+
+      let title = '';
+      for (const titleSelector of titleSelectors) {
+        title = (card.querySelector(titleSelector)?.textContent || '').trim();
+        if (title) break;
+      }
+
+      let rankText = '';
+      for (const rankSelector of rankSelectors) {
+        rankText = (card.querySelector(rankSelector)?.textContent || '').trim();
+        if (rankText) break;
+      }
+
+      const rank = parseInt(rankText.replace(/[^0-9]/g, ''), 10) || null;
+
+      seenAsins.add(asin);
+      items.push({
+        product_id: asin,
+        price,
+        title: title.slice(0, 80),
+        category: categoryPage,
+        rank,
+      });
     });
   }
 
   return items.filter((item) => item.product_id && item.price > 0);
+}
+
+function showBootstrapNotice(message) {
+  const text = String(message || 'Truvak capture completed').trim();
+
+  const existing = document.getElementById('tip-bootstrap-toast');
+  if (existing) existing.remove();
+
+  const toast = document.createElement('div');
+  toast.id = 'tip-bootstrap-toast';
+  toast.textContent = text;
+  toast.style.position = 'fixed';
+  toast.style.bottom = '18px';
+  toast.style.right = '18px';
+  toast.style.zIndex = '2147483647';
+  toast.style.background = 'rgba(13, 17, 23, 0.95)';
+  toast.style.color = '#e6edf3';
+  toast.style.border = '1px solid #30363D';
+  toast.style.borderRadius = '8px';
+  toast.style.padding = '8px 10px';
+  toast.style.fontSize = '12px';
+  toast.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.35)';
+  document.body.appendChild(toast);
+
+  setTimeout(() => {
+    toast.remove();
+  }, 3000);
+}
+
+async function runBestsellerBootstrap() {
+  const items = extractBestsellersPage();
+  if (!items.length) return;
+
+  const message = `Truvak captured ${items.length} price points`;
+
+  if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+    chrome.runtime.sendMessage({ type: 'SHOW_NOTIFICATION', message, options: { timeout: 3000 } }, () => {
+      // Ignore runtime errors (e.g., no background listener).
+    });
+
+    chrome.runtime.sendMessage({ type: 'BESTSELLER_BATCH', items }, (response) => {
+      if (chrome.runtime.lastError) {
+        postBestsellerBatch(items).catch((error) => {
+          console.error('[TIP] Fallback bestseller API post failed:', error);
+        });
+        return;
+      }
+
+      if (!response || !response.ok) {
+        postBestsellerBatch(items).catch((error) => {
+          console.error('[TIP] Fallback bestseller API post failed:', error);
+        });
+      }
+    });
+  } else {
+    await postBestsellerBatch(items);
+  }
+
+  showBootstrapNotice(message);
 }
 
 async function postBestsellerBatch(items) {
@@ -1132,15 +1241,11 @@ async function handleBestsellerBootstrap() {
   if (!isAmazonBestsellerPage()) return;
   if (Date.now() - lastBestsellerBootstrapAt < 15000) return;
 
-  const items = extractBestsellersPage();
-  if (!items.length) return;
-
   lastBestsellerBootstrapAt = Date.now();
   try {
-    const result = await postBestsellerBatch(items);
-    console.log('[TIP] Bestseller batch sent', result);
+    await runBestsellerBootstrap();
   } catch (error) {
-    console.error('[TIP] Error sending bestseller batch:', error);
+    console.error('[TIP] Error running bestseller bootstrap:', error);
   }
 }
 
