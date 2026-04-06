@@ -51,6 +51,35 @@ class CustomerAuthResponse(BaseModel):
     pin_code: Optional[str]
     created_at: str
 
+
+@router.get("/v1/customer/auth/register")
+async def register_customer_help():
+    return {
+        "message": "Use POST for registration",
+        "method": "POST",
+        "path": "/v1/customer/auth/register",
+        "content_type": "application/json",
+        "example_body": {
+            "email": "p0tester@example.com",
+            "password": "StrongPass123",
+            "pin_code": "560001"
+        }
+    }
+
+
+@router.get("/v1/customer/auth/login")
+async def login_customer_help():
+    return {
+        "message": "Use POST for login",
+        "method": "POST",
+        "path": "/v1/customer/auth/login",
+        "content_type": "application/json",
+        "example_body": {
+            "email": "p0tester@example.com",
+            "password": "StrongPass123"
+        }
+    }
+
 def hash_email_for_lookup(email: str) -> str:
     return hashlib.sha256(email.lower().encode()).hexdigest()
 

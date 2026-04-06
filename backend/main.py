@@ -3,6 +3,9 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fastapi import FastAPI, HTTPException, Header, Depends, Query
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional, List
@@ -94,6 +97,65 @@ app.include_router(customer_data_router)
 app.include_router(price_router)
 app.include_router(seller_intel_router)
 app.include_router(watchlist_router)
+
+
+def _error_payload(status_code: int, code: str, message: str, details=None):
+    payload = {
+        "error": {
+            "status_code": int(status_code),
+            "code": code,
+            "message": message,
+        }
+    }
+    if details is not None:
+        payload["error"]["details"] = details
+    return payload
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(_, exc: HTTPException):
+    detail = exc.detail
+
+    if isinstance(detail, dict):
+        message = detail.get("message") or detail.get("error") or "Request failed"
+        code = detail.get("code") or f"HTTP_{exc.status_code}"
+        details = detail.get("details")
+    elif isinstance(detail, str):
+        message = detail
+        code = f"HTTP_{exc.status_code}"
+        details = None
+    else:
+        message = "Request failed"
+        code = f"HTTP_{exc.status_code}"
+        details = detail
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=_error_payload(exc.status_code, code, message, jsonable_encoder(details)),
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_exception_handler(_, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=422,
+        content=_error_payload(
+            422,
+            "VALIDATION_ERROR",
+            "Request validation failed",
+            jsonable_encoder(exc.errors()),
+        ),
+    )
+
+
+@app.get("/healthz")
+async def healthz():
+    return {
+        "status": "ok",
+        "service": "trust-intelligence-platform",
+        "version": "0.1.0",
+        "timestamp_utc": datetime.utcnow().isoformat() + "Z",
+    }
 
 # ── Load model on startup ─────────────────────────────────────────────────────
 MODEL_PATH = os.path.join(os.path.dirname(__file__), '..', 'ml', 'rto_model_v1.pkl')
@@ -453,7 +515,7 @@ def build_factors(req: ScoreRequest, pin_tier: int,
 @app.on_event("startup")
 def startup():
     init_db()
-    init_customer_db(get_connection())
+    init_customer_db()
     print("Trust Intelligence Platform API — ready")
 
 @app.get("/health")

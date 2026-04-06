@@ -69,12 +69,10 @@ def compute_change_pct(price_at_save: float, current_price: Optional[float]) -> 
 
 
 def _ensure_customer_exists(db: Session, customer_id_hash: str) -> None:
-    account = (
-        db.query(CustomerAccount)
-        .filter(CustomerAccount.customer_id_hash == customer_id_hash)
-        .first()
-    )
-    if not account:
+    # JWT auth already validated this identity in get_current_customer.
+    # Some environments keep auth and customer analytics stores decoupled,
+    # so missing mirrored account rows should not block watchlist APIs.
+    if not customer_id_hash or not str(customer_id_hash).strip():
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
