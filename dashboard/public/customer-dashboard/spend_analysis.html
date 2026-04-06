@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Truvak - Spend Analysis</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-tint": "#a2c9ff",
+                        "tertiary-container": "#da9600",
+                        "error-container": "#93000a",
+                        "primary-container": "#58a6ff",
+                        "surface-container-lowest": "#0a0e14",
+                        "surface-variant": "#31353c",
+                        "on-primary": "#00315c",
+                        "on-primary-fixed": "#001c38",
+                        "on-primary-container": "#003a6b",
+                        "on-surface-variant": "#c0c7d4",
+                        "inverse-surface": "#dfe2eb",
+                        "on-error": "#690005",
+                        "secondary-container": "#2e4869",
+                        "on-secondary-container": "#9db7dd",
+                        "surface-container-highest": "#31353c",
+                        "error": "#ffb4ab",
+                        "tertiary": "#ffba42",
+                        "outline": "#8b919d",
+                        "inverse-primary": "#0060aa",
+                        "surface-bright": "#353940",
+                        "on-error-container": "#ffdad6",
+                        "tertiary-fixed-dim": "#ffba42",
+                        "surface": "#10141a",
+                        "surface-container-low": "#181c22",
+                        "on-tertiary-container": "#4f3400",
+                        "primary": "#a2c9ff",
+                        "on-secondary-fixed-variant": "#2e4869",
+                        "surface-container": "#1c2026",
+                        "secondary-fixed-dim": "#aec8ef",
+                        "primary-fixed-dim": "#a2c9ff",
+                        "surface-dim": "#10141a",
+                        "on-primary-fixed-variant": "#004882",
+                        "on-tertiary-fixed": "#281800",
+                        "inverse-on-surface": "#2d3137",
+                        "outline-variant": "#414752",
+                        "on-secondary": "#163151",
+                        "on-secondary-fixed": "#001c38",
+                        "tertiary-fixed": "#ffddaf",
+                        "secondary": "#aec8ef",
+                        "on-surface": "#dfe2eb",
+                        "background": "#10141a",
+                        "on-background": "#dfe2eb",
+                        "on-tertiary": "#432c00",
+                        "surface-container-high": "#262a31",
+                        "secondary-fixed": "#d3e4ff",
+                        "primary-fixed": "#d3e4ff",
+                        "on-tertiary-fixed-variant": "#614000"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #0D1117; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .glass-panel { backdrop-filter: blur(20px); background: rgba(49, 53, 60, 0.6); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="text-on-surface overflow-hidden">
+<div class="flex h-screen w-full">
+<!-- SideNavBar -->
+<aside class="bg-[#181c22] text-[#58A6FF] flex flex-col h-full py-4 w-64 border-r border-outline-variant/10">
+<div class="px-6 mb-8">
+<div class="text-lg font-black text-[#dfe2eb]">Truvak</div>
+<div class="text-[10px] uppercase tracking-[0.2em] text-[#90949d] font-bold">Customer Dashboard</div>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center px-6 py-3 text-[#90949d] hover:bg-[#262a31] hover:text-[#dfe2eb] transition-colors duration-150" href="#">
+<span class="material-symbols-outlined mr-3">home</span>
+<span class="text-sm font-medium tracking-wide">Home</span>
+</a>
+<a class="flex items-center px-6 py-3 text-[#58A6FF] border-r-2 border-[#58A6FF] bg-[#262a31] transition-colors duration-150" href="#">
+<span class="material-symbols-outlined mr-3">analytics</span>
+<span class="text-sm font-medium tracking-wide">Spend Analysis</span>
+</a>
+<a class="flex items-center px-6 py-3 text-[#90949d] hover:bg-[#262a31] hover:text-[#dfe2eb] transition-colors duration-150" href="#">
+<span class="material-symbols-outlined mr-3">visibility</span>
+<span class="text-sm font-medium tracking-wide">Watchlist</span>
+</a>
+<a class="flex items-center px-6 py-3 text-[#90949d] hover:bg-[#262a31] hover:text-[#dfe2eb] transition-colors duration-150" href="#">
+<span class="material-symbols-outlined mr-3">person</span>
+<span class="text-sm font-medium tracking-wide">Buyer Profile</span>
+</a>
+<a class="flex items-center px-6 py-3 text-[#90949d] hover:bg-[#262a31] hover:text-[#dfe2eb] transition-colors duration-150" href="#">
+<span class="material-symbols-outlined mr-3">settings</span>
+<span class="text-sm font-medium tracking-wide">Settings</span>
+</a>
+</nav>
+<div class="px-6 mt-auto">
+<button class="flex items-center text-[#90949d] hover:text-[#dfe2eb] transition-colors">
+<span class="material-symbols-outlined mr-3">menu_open</span>
+<span class="text-sm font-medium">Collapse</span>
+</button>
+</div>
+</aside>
+<!-- Main Content Area -->
+<div class="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#0D1117]">
+<!-- TopNavBar -->
+<header class="bg-[#10141a] flex justify-between items-center w-full px-6 py-3 border-b border-outline-variant/10">
+<div class="flex items-center space-x-4">
+<h1 class="text-xl font-bold tracking-tight text-[#dfe2eb]">Truvak</h1>
+</div>
+<div class="flex items-center space-x-4">
+<button class="p-2 text-[#90949d] hover:bg-[#262a31] rounded-full transition-colors active:scale-95">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<div class="h-8 w-8 rounded-full bg-[#262a31] border border-outline-variant/30 overflow-hidden">
+<img alt="User Avatar" class="w-full h-full object-cover" data-alt="Portrait of a modern professional user as a stylized 3D avatar with neutral background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBFeA1oX03xc_hZJsQXLXBiUaX75U_6jufHdNkaCC4qUgqYwmB4qmy2cvFqpL5VAW7KTZlvwMusEDa3pNPTrqwqcVkpadXAhcgUzakUM6zoJwYAAjRugiVeA4fmsiLpHqsIGH6lfkVbFOhmNWPgT-fESg864YtS06Qid0wJ6WjRadQjCwRMIfncB2ZsIY4Cdf642pd5pNinzgN63rOHZVpO-qErNJEVQKXdWlhb3Dk53MTQ6XxxhS_hhbkyIq_8Y18zuOdO8NUj8A"/>
+</div>
+<button class="p-2 text-[#90949d] hover:bg-[#262a31] rounded-full transition-colors active:scale-95">
+<span class="material-symbols-outlined">logout</span>
+</button>
+</div>
+</header>
+<!-- Scrollable Content -->
+<main class="flex-1 overflow-y-auto p-6 space-y-8 no-scrollbar">
+<!-- Page Header & Time Selector -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div>
+<h2 class="text-2xl font-bold text-white leading-tight">Spend Analysis</h2>
+<p class="text-sm text-outline font-medium mt-1">Your shopping intelligence for the last 15 days</p>
+</div>
+<div class="flex p-1 bg-surface-container-low rounded-lg border border-outline-variant/20">
+<button class="px-4 py-1.5 text-xs font-semibold text-outline hover:text-on-surface transition-all rounded">7 Days</button>
+<button class="px-4 py-1.5 text-xs font-semibold bg-[#2F81F7] text-white shadow-lg shadow-[#2F81F7]/20 rounded">15 Days</button>
+<button class="px-4 py-1.5 text-xs font-semibold text-outline hover:text-on-surface transition-all rounded">30 Days</button>
+<button class="px-4 py-1.5 text-xs font-semibold text-outline hover:text-on-surface transition-all rounded">Custom</button>
+</div>
+</div>
+<!-- KPI Cards Row -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+<div class="bg-surface-container-low p-5 rounded-xl border border-outline-variant/10 group hover:bg-surface-container transition-all">
+<p class="text-[10px] uppercase tracking-widest text-outline font-bold mb-2">Total Spend</p>
+<h3 class="text-2xl font-black text-[#3FB950]">₹12,450</h3>
+<div class="mt-2 flex items-center text-[10px] text-[#3FB950]">
+<span class="material-symbols-outlined text-xs mr-1">trending_up</span>
+<span>+12% vs last period</span>
+</div>
+</div>
+<div class="bg-surface-container-low p-5 rounded-xl border border-outline-variant/10 group hover:bg-surface-container transition-all">
+<p class="text-[10px] uppercase tracking-widest text-outline font-bold mb-2">Orders Count</p>
+<h3 class="text-2xl font-black text-[#58A6FF]">24</h3>
+<div class="mt-2 flex items-center text-[10px] text-outline">
+<span>Stable activity</span>
+</div>
+</div>
+<div class="bg-surface-container-low p-5 rounded-xl border border-outline-variant/10 group hover:bg-surface-container transition-all">
+<p class="text-[10px] uppercase tracking-widest text-outline font-bold mb-2">Returns</p>
+<div class="flex items-baseline space-x-2">
+<h3 class="text-2xl font-black text-[#F85149]">3</h3>
+<span class="text-sm font-bold text-[#F85149]/70">12.5%</span>
+</div>
+<div class="mt-2 flex items-center text-[10px] text-[#F85149]">
+<span class="material-symbols-outlined text-xs mr-1">warning</span>
+<span>Above usual rate</span>
+</div>
+</div>
+<div class="bg-surface-container-low p-5 rounded-xl border border-outline-variant/10 group hover:bg-surface-container transition-all">
+<p class="text-[10px] uppercase tracking-widest text-outline font-bold mb-2">Avg Order Value</p>
+<h3 class="text-2xl font-black text-[#58A6FF]">₹518</h3>
+<div class="mt-2 flex items-center text-[10px] text-outline">
+<span>Optimal basket size</span>
+</div>
+</div>
+<div class="bg-surface-container-low p-5 rounded-xl border border-outline-variant/10 group hover:bg-surface-container transition-all">
+<p class="text-[10px] uppercase tracking-widest text-outline font-bold mb-2">Impulse Buys</p>
+<div class="flex items-baseline space-x-2">
+<h3 class="text-2xl font-black text-[#D29922]">6</h3>
+</div>
+<div class="mt-2 flex items-center text-[10px] text-[#D29922]">
+<span class="material-symbols-outlined text-xs mr-1">schedule</span>
+<span>Orders after 10 PM</span>
+</div>
+</div>
+</div>
+<!-- Daily Spend Bar Chart Section -->
+<div class="bg-surface-container-low p-6 rounded-xl border border-outline-variant/10">
+<div class="flex justify-between items-center mb-8">
+<h4 class="text-sm font-bold text-on-surface uppercase tracking-wider">Daily Platform Spend</h4>
+<div class="flex space-x-4">
+<div class="flex items-center text-[10px] font-bold text-outline">
+<span class="w-2 h-2 rounded-full bg-[#58A6FF] mr-2"></span> Amazon
+                            </div>
+<div class="flex items-center text-[10px] font-bold text-outline">
+<span class="w-2 h-2 rounded-full bg-[#D29922] mr-2"></span> Flipkart
+                            </div>
+</div>
+</div>
+<div class="h-[240px] flex items-end justify-between gap-2 px-2">
+<!-- Bar groups representing 15 days -->
+<div class="flex-1 flex flex-col justify-end space-y-1 group">
+<div class="flex items-end justify-center space-x-0.5 h-full">
+<div class="w-full max-w-[10px] bg-[#58A6FF] rounded-t-sm" style="height: 40%"></div>
+<div class="w-full max-w-[10px] bg-[#D29922] rounded-t-sm" style="height: 25%"></div>
+</div>
+<span class="text-[9px] text-center text-outline">Day 1</span>
+</div>
+<div class="flex-1 flex flex-col justify-end space-y-1 group">
+<div class="flex items-end justify-center space-x-0.5 h-full">
+<div class="w-full max-w-[10px] bg-[#58A6FF] rounded-t-sm" style="height: 65%"></div>
+<div class="w-full max-w-[10px] bg-[#D29922] rounded-t-sm" style="height: 45%"></div>
+</div>
+<span class="text-[9px] text-center text-outline">Day 3</span>
+</div>
+<div class="flex-1 flex flex-col justify-end space-y-1 group">
+<div class="flex items-end justify-center space-x-0.5 h-full">
+<div class="w-full max-w-[10px] bg-[#58A6FF] rounded-t-sm" style="height: 30%"></div>
+<div class="w-full max-w-[10px] bg-[#D29922] rounded-t-sm" style="height: 80%"></div>
+</div>
+<span class="text-[9px] text-center text-outline">Day 5</span>
+</div>
+<!-- ... simplified bars for visual density ... -->
+<div class="flex-1 flex flex-col justify-end space-y-1 group">
+<div class="flex items-end justify-center space-x-0.5 h-full">
+<div class="w-full max-w-[10px] bg-[#58A6FF] rounded-t-sm" style="height: 90%"></div>
+<div class="w-full max-w-[10px] bg-[#D29922] rounded-t-sm" style="height: 30%"></div>
+</div>
+<span class="text-[9px] text-center text-outline">Day 7</span>
+</div>
+<div class="flex-1 flex flex-col justify-end space-y-1 group">
+<div class="flex items-end justify-center space-x-0.5 h-full">
+<div class="w-full max-w-[10px] bg-[#58A6FF] rounded-t-sm" style="height: 45%"></div>
+<div class="w-full max-w-[10px] bg-[#D29922] rounded-t-sm" style="height: 15%"></div>
+</div>
+<span class="text-[9px] text-center text-outline">Day 9</span>
+</div>
+<div class="flex-1 flex flex-col justify-end space-y-1 group">
+<div class="flex items-end justify-center space-x-0.5 h-full">
+<div class="w-full max-w-[10px] bg-[#58A6FF] rounded-t-sm" style="height: 70%"></div>
+<div class="w-full max-w-[10px] bg-[#D29922] rounded-t-sm" style="height: 55%"></div>
+</div>
+<span class="text-[9px] text-center text-outline">Day 11</span>
+</div>
+<div class="flex-1 flex flex-col justify-end space-y-1 group">
+<div class="flex items-end justify-center space-x-0.5 h-full">
+<div class="w-full max-w-[10px] bg-[#58A6FF] rounded-t-sm" style="height: 20%"></div>
+<div class="w-full max-w-[10px] bg-[#D29922] rounded-t-sm" style="height: 95%"></div>
+</div>
+<span class="text-[9px] text-center text-outline">Day 13</span>
+</div>
+<div class="flex-1 flex flex-col justify-end space-y-1 group">
+<div class="flex items-end justify-center space-x-0.5 h-full">
+<div class="w-full max-w-[10px] bg-[#58A6FF] rounded-t-sm" style="height: 50%"></div>
+<div class="w-full max-w-[10px] bg-[#D29922] rounded-t-sm" style="height: 40%"></div>
+</div>
+<span class="text-[9px] text-center text-outline">Day 15</span>
+</div>
+</div>
+</div>
+<!-- Category & Platform Breakdown Row -->
+<div class="grid grid-cols-1 lg:grid-cols-10 gap-6">
+<!-- Left: Category Donut -->
+<div class="lg:col-span-6 bg-surface-container-low p-6 rounded-xl border border-outline-variant/10">
+<h4 class="text-sm font-bold text-on-surface uppercase tracking-wider mb-8">Category Breakdown</h4>
+<div class="flex flex-col md:flex-row items-center justify-around gap-8">
+<!-- SVG Donut Chart Mockup -->
+<div class="relative w-48 h-48">
+<svg class="w-full h-full rotate-[-90deg]" viewbox="0 0 36 36">
+<circle cx="18" cy="18" fill="transparent" r="15.9" stroke="#262a31" stroke-width="3"></circle>
+<circle cx="18" cy="18" fill="transparent" r="15.9" stroke="#58A6FF" stroke-dasharray="35 100" stroke-dashoffset="0" stroke-width="3"></circle>
+<circle cx="18" cy="18" fill="transparent" r="15.9" stroke="#D29922" stroke-dasharray="20 100" stroke-dashoffset="-35" stroke-width="3"></circle>
+<circle cx="18" cy="18" fill="transparent" r="15.9" stroke="#3FB950" stroke-dasharray="15 100" stroke-dashoffset="-55" stroke-width="3"></circle>
+<circle cx="18" cy="18" fill="transparent" r="15.9" stroke="#F85149" stroke-dasharray="10 100" stroke-dashoffset="-70" stroke-width="3"></circle>
+<circle cx="18" cy="18" fill="transparent" r="15.9" stroke="#8957E5" stroke-dasharray="10 100" stroke-dashoffset="-80" stroke-width="3"></circle>
+<circle cx="18" cy="18" fill="transparent" r="15.9" stroke="#C9D1D9" stroke-dasharray="10 100" stroke-dashoffset="-90" stroke-width="3"></circle>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center">
+<span class="text-2xl font-black text-white">₹12.4k</span>
+<span class="text-[9px] uppercase font-bold text-outline">Total</span>
+</div>
+</div>
+<!-- Legend -->
+<div class="grid grid-cols-2 gap-x-8 gap-y-3">
+<div class="flex items-center text-xs font-medium text-outline">
+<span class="w-2.5 h-2.5 rounded-full bg-[#58A6FF] mr-3"></span> Electronics (35%)
+                                </div>
+<div class="flex items-center text-xs font-medium text-outline">
+<span class="w-2.5 h-2.5 rounded-full bg-[#D29922] mr-3"></span> Fashion (20%)
+                                </div>
+<div class="flex items-center text-xs font-medium text-outline">
+<span class="w-2.5 h-2.5 rounded-full bg-[#3FB950] mr-3"></span> Home (15%)
+                                </div>
+<div class="flex items-center text-xs font-medium text-outline">
+<span class="w-2.5 h-2.5 rounded-full bg-[#F85149] mr-3"></span> FMCG (10%)
+                                </div>
+<div class="flex items-center text-xs font-medium text-outline">
+<span class="w-2.5 h-2.5 rounded-full bg-[#8957E5] mr-3"></span> Beauty (10%)
+                                </div>
+<div class="flex items-center text-xs font-medium text-outline">
+<span class="w-2.5 h-2.5 rounded-full bg-[#C9D1D9] mr-3"></span> Other (10%)
+                                </div>
+</div>
+</div>
+</div>
+<!-- Right: Platform Split -->
+<div class="lg:col-span-4 bg-surface-container-low p-6 rounded-xl border border-outline-variant/10">
+<h4 class="text-sm font-bold text-on-surface uppercase tracking-wider mb-8">Platform Split</h4>
+<div class="space-y-10">
+<div>
+<div class="flex justify-between items-end mb-3">
+<span class="text-sm font-bold text-[#58A6FF]">Amazon</span>
+<span class="text-xs text-outline">₹8,120 · 16 Orders</span>
+</div>
+<div class="w-full h-3 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-[#58A6FF]" style="width: 65%"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between items-end mb-3">
+<span class="text-sm font-bold text-[#D29922]">Flipkart</span>
+<span class="text-xs text-outline">₹4,330 · 8 Orders</span>
+</div>
+<div class="w-full h-3 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-[#D29922]" style="width: 35%"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Time of Day Heatmap -->
+<div class="bg-surface-container-low p-6 rounded-xl border border-outline-variant/10 overflow-hidden">
+<div class="flex justify-between items-center mb-6">
+<div>
+<h4 class="text-sm font-bold text-on-surface uppercase tracking-wider">Purchase Frequency Heatmap</h4>
+<p class="text-[10px] text-outline font-medium mt-0.5">Correlation between day of week and hour of purchase</p>
+</div>
+<div class="flex items-center space-x-2">
+<span class="text-[9px] text-outline font-bold uppercase">Low</span>
+<div class="flex space-x-0.5">
+<div class="w-3 h-3 bg-blue-900/30 rounded-sm"></div>
+<div class="w-3 h-3 bg-blue-700/50 rounded-sm"></div>
+<div class="w-3 h-3 bg-blue-500 rounded-sm"></div>
+<div class="w-3 h-3 bg-blue-400 rounded-sm"></div>
+</div>
+<span class="text-[9px] text-outline font-bold uppercase">High</span>
+</div>
+</div>
+<div class="relative min-w-[700px]">
+<div class="grid grid-cols-24 gap-1">
+<!-- X Axis Labels -->
+<div class="col-span-24 flex justify-between px-8 mb-2">
+<span class="text-[8px] text-outline font-bold">12AM</span>
+<span class="text-[8px] text-outline font-bold">6AM</span>
+<span class="text-[8px] text-outline font-bold">12PM</span>
+<span class="text-[8px] text-outline font-bold">6PM</span>
+<span class="text-[8px] text-outline font-bold">11PM</span>
+</div>
+<!-- Grid Rows (simplified 7x24 layout) -->
+<!-- Monday Row -->
+<div class="flex items-center col-span-24 gap-1">
+<span class="w-6 text-[8px] text-outline font-bold text-right">MON</span>
+<div class="flex-1 h-4 grid grid-cols-24 gap-0.5">
+<!-- Hourly blocks with varying blue opacity -->
+<div class="bg-blue-500 opacity-20 rounded-sm"></div><div class="bg-blue-500 opacity-10 rounded-sm"></div><div class="bg-blue-500 opacity-5 rounded-sm"></div><div class="bg-blue-500 opacity-5 rounded-sm"></div><div class="bg-blue-500 opacity-5 rounded-sm"></div><div class="bg-blue-500 opacity-5 rounded-sm"></div><div class="bg-blue-500 opacity-10 rounded-sm"></div><div class="bg-blue-500 opacity-20 rounded-sm"></div><div class="bg-blue-500 opacity-30 rounded-sm"></div><div class="bg-blue-500 opacity-40 rounded-sm"></div><div class="bg-blue-500 opacity-50 rounded-sm"></div><div class="bg-blue-500 opacity-70 rounded-sm"></div><div class="bg-blue-500 opacity-60 rounded-sm"></div><div class="bg-blue-500 opacity-50 rounded-sm"></div><div class="bg-blue-500 opacity-40 rounded-sm"></div><div class="bg-blue-500 opacity-50 rounded-sm"></div><div class="bg-blue-500 opacity-60 rounded-sm"></div><div class="bg-blue-500 opacity-70 rounded-sm"></div><div class="bg-blue-500 opacity-80 rounded-sm"></div><div class="bg-blue-500 opacity-90 rounded-sm"></div><div class="bg-blue-500 opacity-100 rounded-sm"></div><div class="bg-blue-500 opacity-100 rounded-sm"></div><div class="bg-blue-500 opacity-80 rounded-sm"></div><div class="bg-blue-500 opacity-60 rounded-sm"></div>
+</div>
+</div>
+<!-- Tuesday Row ... etc. -->
+<div class="flex items-center col-span-24 gap-1">
+<span class="w-6 text-[8px] text-outline font-bold text-right">WED</span>
+<div class="flex-1 h-4 grid grid-cols-24 gap-0.5">
+<div class="bg-blue-500 opacity-10 rounded-sm"></div><div class="bg-blue-500 opacity-10 rounded-sm"></div><div class="bg-blue-500 opacity-5 rounded-sm"></div><div class="bg-blue-500 opacity-5 rounded-sm"></div><div class="bg-blue-500 opacity-5 rounded-sm"></div><div class="bg-blue-500 opacity-5 rounded-sm"></div><div class="bg-blue-500 opacity-10 rounded-sm"></div><div class="bg-blue-500 opacity-20 rounded-sm"></div><div class="bg-blue-500 opacity-40 rounded-sm"></div><div class="bg-blue-500 opacity-50 rounded-sm"></div><div class="bg-blue-500 opacity-60 rounded-sm"></div><div class="bg-blue-500 opacity-80 rounded-sm"></div><div class="bg-blue-500 opacity-70 rounded-sm"></div><div class="bg-blue-500 opacity-60 rounded-sm"></div><div class="bg-blue-500 opacity-50 rounded-sm"></div><div class="bg-blue-500 opacity-60 rounded-sm"></div><div class="bg-blue-500 opacity-70 rounded-sm"></div><div class="bg-blue-500 opacity-80 rounded-sm"></div><div class="bg-blue-500 opacity-90 rounded-sm"></div><div class="bg-blue-500 opacity-100 rounded-sm"></div><div class="bg-blue-500 opacity-100 rounded-sm"></div><div class="bg-blue-500 opacity-90 rounded-sm"></div><div class="bg-blue-500 opacity-70 rounded-sm"></div><div class="bg-blue-500 opacity-50 rounded-sm"></div>
+</div>
+</div>
+<div class="flex items-center col-span-24 gap-1">
+<span class="w-6 text-[8px] text-outline font-bold text-right">FRI</span>
+<div class="flex-1 h-4 grid grid-cols-24 gap-0.5">
+<div class="bg-blue-500 opacity-10 rounded-sm"></div><div class="bg-blue-500 opacity-10 rounded-sm"></div><div class="bg-blue-500 opacity-5 rounded-sm"></div><div class="bg-blue-500 opacity-5 rounded-sm"></div><div class="bg-blue-500 opacity-5 rounded-sm"></div><div class="bg-blue-500 opacity-5 rounded-sm"></div><div class="bg-blue-500 opacity-10 rounded-sm"></div><div class="bg-blue-500 opacity-20 rounded-sm"></div><div class="bg-blue-500 opacity-40 rounded-sm"></div><div class="bg-blue-500 opacity-50 rounded-sm"></div><div class="bg-blue-500 opacity-60 rounded-sm"></div><div class="bg-blue-500 opacity-80 rounded-sm"></div><div class="bg-blue-500 opacity-70 rounded-sm"></div><div class="bg-blue-500 opacity-60 rounded-sm"></div><div class="bg-blue-500 opacity-50 rounded-sm"></div><div class="bg-blue-500 opacity-60 rounded-sm"></div><div class="bg-blue-500 opacity-70 rounded-sm"></div><div class="bg-blue-500 opacity-80 rounded-sm"></div><div class="bg-blue-500 opacity-90 rounded-sm"></div><div class="bg-blue-500 opacity-100 rounded-sm"></div><div class="bg-blue-500 opacity-100 rounded-sm"></div><div class="bg-blue-500 opacity-90 rounded-sm"></div><div class="bg-blue-500 opacity-70 rounded-sm"></div><div class="bg-blue-500 opacity-50 rounded-sm"></div>
+</div>
+</div>
+<div class="flex items-center col-span-24 gap-1">
+<span class="w-6 text-[8px] text-outline font-bold text-right">SUN</span>
+<div class="flex-1 h-4 grid grid-cols-24 gap-0.5">
+<div class="bg-blue-500 opacity-10 rounded-sm"></div><div class="bg-blue-500 opacity-10 rounded-sm"></div><div class="bg-blue-500 opacity-5 rounded-sm"></div><div class="bg-blue-500 opacity-5 rounded-sm"></div><div class="bg-blue-500 opacity-5 rounded-sm"></div><div class="bg-blue-500 opacity-5 rounded-sm"></div><div class="bg-blue-500 opacity-10 rounded-sm"></div><div class="bg-blue-500 opacity-20 rounded-sm"></div><div class="bg-blue-500 opacity-40 rounded-sm"></div><div class="bg-blue-500 opacity-50 rounded-sm"></div><div class="bg-blue-500 opacity-60 rounded-sm"></div><div class="bg-blue-500 opacity-80 rounded-sm"></div><div class="bg-blue-500 opacity-70 rounded-sm"></div><div class="bg-blue-500 opacity-60 rounded-sm"></div><div class="bg-blue-500 opacity-50 rounded-sm"></div><div class="bg-blue-500 opacity-60 rounded-sm"></div><div class="bg-blue-500 opacity-70 rounded-sm"></div><div class="bg-blue-500 opacity-80 rounded-sm"></div><div class="bg-blue-500 opacity-90 rounded-sm"></div><div class="bg-blue-500 opacity-100 rounded-sm"></div><div class="bg-blue-500 opacity-100 rounded-sm"></div><div class="bg-blue-500 opacity-90 rounded-sm"></div><div class="bg-blue-500 opacity-70 rounded-sm"></div><div class="bg-blue-500 opacity-50 rounded-sm"></div>
+</div>
+</div>
+<!-- Impulse Zone Highlight Overlay (Absolute positioning over the grid) -->
+<div class="absolute right-[5px] top-[14px] bottom-0 w-[12.5%] border-2 border-[#D29922]/40 rounded bg-[#D29922]/5 pointer-events-none"></div>
+</div>
+</div>
+<div class="mt-4 flex items-center text-[10px] text-[#D29922] font-semibold">
+<span class="material-symbols-outlined text-xs mr-1">info</span>
+                        Impulse Zone (22:00 - 02:00): 42% of your spend happens here.
+                    </div>
+</div>
+<!-- Shopping Health Score & Savings Section -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-8">
+<!-- Health Score -->
+<div class="bg-surface-container-low p-6 rounded-xl border border-outline-variant/10 flex flex-col md:flex-row items-center gap-8">
+<div class="relative w-[120px] h-[120px]">
+<svg class="w-full h-full" viewbox="0 0 36 36">
+<circle cx="18" cy="18" fill="transparent" r="15.9" stroke="#262a31" stroke-width="3"></circle>
+<circle cx="18" cy="18" fill="transparent" r="15.9" stroke="#3FB950" stroke-dasharray="82 100" stroke-linecap="round" stroke-width="3"></circle>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center">
+<span class="text-3xl font-black text-white">82</span>
+<span class="text-[8px] uppercase font-bold text-[#3FB950]">Good</span>
+</div>
+</div>
+<div class="flex-1 w-full space-y-4">
+<h4 class="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Health Metrics</h4>
+<div class="space-y-3">
+<div>
+<div class="flex justify-between text-[10px] font-bold mb-1">
+<span class="text-outline">Order Completion</span>
+<span class="text-on-surface">95%</span>
+</div>
+<div class="w-full h-1.5 bg-surface-container rounded-full"><div class="h-full bg-[#3FB950] rounded-full" style="width: 95%"></div></div>
+</div>
+<div>
+<div class="flex justify-between text-[10px] font-bold mb-1">
+<span class="text-outline">Return Rate</span>
+<span class="text-on-surface">12%</span>
+</div>
+<div class="w-full h-1.5 bg-surface-container rounded-full"><div class="h-full bg-[#F85149] rounded-full" style="width: 12%"></div></div>
+</div>
+<div>
+<div class="flex justify-between text-[10px] font-bold mb-1">
+<span class="text-outline">COD Fulfillment</span>
+<span class="text-on-surface">88%</span>
+</div>
+<div class="w-full h-1.5 bg-surface-container rounded-full"><div class="h-full bg-[#58A6FF] rounded-full" style="width: 88%"></div></div>
+</div>
+<div>
+<div class="flex justify-between text-[10px] font-bold mb-1">
+<span class="text-outline">Impulse Buy Rate</span>
+<span class="text-on-surface">25%</span>
+</div>
+<div class="w-full h-1.5 bg-surface-container rounded-full"><div class="h-full bg-[#D29922] rounded-full" style="width: 25%"></div></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Truvak Savings Card -->
+<div class="bg-[#3FB950]/10 p-8 rounded-xl border border-[#3FB950] flex flex-col justify-center relative overflow-hidden group">
+<div class="absolute -right-8 -top-8 w-32 h-32 bg-[#3FB950]/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-500"></div>
+<div class="relative z-10">
+<span class="material-symbols-outlined text-[#3FB950] text-4xl mb-4">account_balance_wallet</span>
+<h3 class="text-4xl font-black text-[#3FB950]">₹1,245 saved</h3>
+<p class="text-sm text-on-surface-variant font-medium mt-3 leading-relaxed">
+                                Truvak's price tracking and coupon automation helped you save an average of <span class="text-white font-bold">10.4%</span> on your purchases this month.
+                            </p>
+<button class="mt-6 flex items-center text-xs font-black uppercase tracking-widest text-[#3FB950] hover:translate-x-1 transition-transform">
+                                View Saving Details <span class="material-symbols-outlined text-sm ml-2">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+</div>
+</div>
+</body></html>

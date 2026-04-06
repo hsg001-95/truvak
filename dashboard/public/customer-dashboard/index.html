@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Truvak Intelligence Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#a2c9ff",
+                        "on-secondary-fixed-variant": "#2e4869",
+                        "error-container": "#93000a",
+                        "primary-container": "#58a6ff",
+                        "tertiary-fixed-dim": "#ffba42",
+                        "on-tertiary-fixed": "#281800",
+                        "background": "#10141a",
+                        "on-secondary-container": "#9db7dd",
+                        "on-secondary": "#163151",
+                        "tertiary": "#ffba42",
+                        "error": "#ffb4ab",
+                        "on-background": "#dfe2eb",
+                        "surface-dim": "#10141a",
+                        "surface-container-high": "#262a31",
+                        "surface-bright": "#353940",
+                        "outline": "#8b919d",
+                        "secondary-fixed-dim": "#aec8ef",
+                        "primary-fixed-dim": "#a2c9ff",
+                        "inverse-primary": "#0060aa",
+                        "on-primary-container": "#003a6b",
+                        "on-tertiary-fixed-variant": "#614000",
+                        "surface": "#10141a",
+                        "secondary-container": "#2e4869",
+                        "tertiary-container": "#da9600",
+                        "surface-container": "#1c2026",
+                        "on-error-container": "#ffdad6",
+                        "surface-container-low": "#181c22",
+                        "on-primary": "#00315c",
+                        "inverse-on-surface": "#2d3137",
+                        "on-tertiary": "#432c00",
+                        "on-error": "#690005",
+                        "tertiary-fixed": "#ffddaf",
+                        "on-tertiary-container": "#4f3400",
+                        "outline-variant": "#414752",
+                        "primary-fixed": "#d3e4ff",
+                        "surface-variant": "#31353c",
+                        "secondary": "#aec8ef",
+                        "on-surface": "#dfe2eb",
+                        "surface-container-highest": "#31353c",
+                        "surface-tint": "#a2c9ff",
+                        "secondary-fixed": "#d3e4ff",
+                        "on-primary-fixed": "#001c38",
+                        "on-primary-fixed-variant": "#004882",
+                        "inverse-surface": "#dfe2eb",
+                        "surface-container-lowest": "#0a0e14",
+                        "on-surface-variant": "#c0c7d4",
+                        "on-secondary-fixed": "#001c38"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #10141a; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .glass-panel { background: rgba(49, 53, 60, 0.6); backdrop-filter: blur(20px); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="text-on-surface overflow-hidden">
+<!-- TopNavBar Shell -->
+<header class="h-[60px] fixed top-0 w-full z-50 bg-slate-900/80 backdrop-blur-xl shadow-sm shadow-blue-500/5 flex justify-between items-center px-6">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold tracking-tighter text-blue-400">Truvak</span>
+<div class="hidden md:block">
+<p class="text-sm font-medium text-slate-400">Hi Alex Chen</p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 rounded-full hover:bg-slate-800/80 transition-colors relative">
+<span class="material-symbols-outlined text-slate-400" data-icon="notifications">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border-2 border-slate-900"></span>
+</button>
+<div class="h-8 w-8 rounded-full overflow-hidden border border-outline-variant">
+<img alt="User Avatar" data-alt="Close up portrait of a professional male with short dark hair in a corporate setting with neutral lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBjIXMvBoDuLJWmzKBwfnPyPrfxXDGt5vMMIiz4AIujTyUchTdHmrnLJt0-igRz88LljJpkRoeCuQG_2pXCoUPCSofWRDroeil-hfBbfCd2OMvgdd4F5g6PXgDJu6GzLmPL1wNAs6OW-8ErZ85f-FlDr7FmN3nzbGw9fw1D5v67y4eo7NjkFwDqY2Nj-ppZo8qHQ0Qm8K78WoLqfQ13eJ-6f-6olMsSORZ8JvI_8eVs2W3ad9VUfSLXqhgbnSlKchdsUiMZAFJLMw"/>
+</div>
+<button class="flex items-center gap-2 px-3 py-1.5 rounded text-slate-400 hover:bg-slate-800/80 transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="logout">logout</span>
+<span class="text-sm font-sans tracking-tight">Logout</span>
+</button>
+</div>
+</header>
+<div class="flex h-screen pt-[60px]">
+<!-- SideNavBar Shell -->
+<aside class="hidden md:flex flex-col pt-4 fixed left-0 top-[60px] w-[220px] h-[calc(100vh-100px)] bg-slate-950 bg-slate-900 border-r border-slate-800/30">
+<nav class="flex-1 space-y-1">
+<!-- Home Active -->
+<a class="flex items-center gap-3 px-6 py-3 text-blue-400 bg-slate-900/80 border-r-2 border-blue-500 transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="text-sm font-medium Inter">Home</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-3 text-slate-500 hover:text-slate-300 hover:bg-slate-900/50 transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+<span class="text-sm font-medium Inter">Spend Analysis</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-3 text-slate-500 hover:text-slate-300 hover:bg-slate-900/50 transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="visibility">visibility</span>
+<span class="text-sm font-medium Inter">Watchlist</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-3 text-slate-500 hover:text-slate-300 hover:bg-slate-900/50 transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="text-sm font-medium Inter">Buyer Profile</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-3 text-slate-500 hover:text-slate-300 hover:bg-slate-900/50 transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="text-sm font-medium Inter">Settings</span>
+</a>
+</nav>
+<div class="p-6">
+<div class="p-4 rounded-lg bg-surface-container-high border border-outline-variant/20">
+<p class="text-[10px] uppercase tracking-widest text-slate-500 mb-2">Account Type</p>
+<p class="text-xs font-bold text-blue-400">Enterprise Pro</p>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 md:ml-[220px] pb-[40px] overflow-y-auto no-scrollbar">
+<div class="p-6 max-w-7xl mx-auto space-y-8">
+<!-- Welcome Section (Asymmetric Hero) -->
+<section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+<div class="lg:col-span-8 p-8 rounded-xl bg-gradient-to-br from-surface-container-high to-surface-container relative overflow-hidden group">
+<div class="relative z-10">
+<h1 class="text-3xl font-extrabold tracking-tight mb-2">Market Overview</h1>
+<p class="text-on-surface-variant max-w-md">Your procurement intelligence dashboard is updated with the latest trade data from 12 regional hubs.</p>
+<div class="mt-8 flex gap-4">
+<button class="px-6 py-2.5 rounded-lg bg-gradient-to-r from-primary to-primary-container text-on-primary-fixed font-semibold text-sm shadow-lg shadow-primary/10">Generate Report</button>
+<button class="px-6 py-2.5 rounded-lg border border-outline-variant text-primary font-semibold text-sm hover:bg-surface-container-highest transition-colors">View Trends</button>
+</div>
+</div>
+<div class="absolute -right-20 -bottom-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl group-hover:bg-primary/20 transition-all duration-700"></div>
+</div>
+<div class="lg:col-span-4 p-8 rounded-xl bg-surface-container-low flex flex-col justify-between border border-outline-variant/10">
+<div>
+<span class="material-symbols-outlined text-tertiary mb-4" data-icon="trending_up">trending_up</span>
+<p class="text-label-md text-on-surface-variant font-medium tracking-wide uppercase text-[10px]">Spend Efficiency</p>
+<p class="text-4xl font-bold mt-1">+12.4%</p>
+</div>
+<p class="text-xs text-on-surface-variant leading-relaxed">Optimization algorithms identified 4 new saving opportunities this week.</p>
+</div>
+</section>
+<!-- Bento Grid Metrics -->
+<section class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+<!-- Metric Card 1 -->
+<div class="p-6 rounded-xl bg-surface-container-low hover:bg-surface-container-high transition-colors group">
+<div class="flex justify-between items-start mb-6">
+<div class="p-2 rounded bg-secondary-container/30 text-secondary">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+</div>
+<span class="text-[10px] font-mono text-on-surface-variant bg-surface-variant px-2 py-0.5 rounded">LIVE</span>
+</div>
+<p class="text-sm text-on-surface-variant">Total Managed Spend</p>
+<p class="text-2xl font-bold mt-1">₹4.2 Cr</p>
+<div class="mt-4 h-1.5 w-full bg-surface-variant rounded-full overflow-hidden">
+<div class="h-full bg-primary w-2/3"></div>
+</div>
+</div>
+<!-- Metric Card 2 -->
+<div class="p-6 rounded-xl bg-surface-container-low hover:bg-surface-container-high transition-colors">
+<div class="flex justify-between items-start mb-6">
+<div class="p-2 rounded bg-tertiary-container/20 text-tertiary">
+<span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+</div>
+</div>
+<p class="text-sm text-on-surface-variant">Active Suppliers</p>
+<p class="text-2xl font-bold mt-1">142</p>
+<p class="text-xs text-tertiary mt-2 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="warning">warning</span> 2 Pending Review
+                        </p>
+</div>
+<!-- Metric Card 3 -->
+<div class="p-6 rounded-xl bg-surface-container-low hover:bg-surface-container-high transition-colors">
+<div class="flex justify-between items-start mb-6">
+<div class="p-2 rounded bg-primary-container/20 text-primary">
+<span class="material-symbols-outlined" data-icon="verified_user">verified_user</span>
+</div>
+</div>
+<p class="text-sm text-on-surface-variant">Risk Compliance</p>
+<p class="text-2xl font-bold mt-1">98.2%</p>
+<p class="text-xs text-secondary mt-2">Optimal Security</p>
+</div>
+<!-- Metric Card 4 -->
+<div class="p-6 rounded-xl bg-surface-container-low hover:bg-surface-container-high transition-colors md:col-span-3 lg:col-span-1">
+<div class="flex justify-between items-start mb-6">
+<div class="p-2 rounded bg-outline-variant/30 text-on-surface">
+<span class="material-symbols-outlined" data-icon="timeline">timeline</span>
+</div>
+</div>
+<p class="text-sm text-on-surface-variant">Market Index</p>
+<p class="text-2xl font-bold mt-1">1.04</p>
+<p class="text-xs text-on-surface-variant mt-2 tracking-tight">Relative to benchmark</p>
+</div>
+</section>
+<!-- Data Table Workspace -->
+<section class="bg-surface-container-low rounded-xl overflow-hidden border border-outline-variant/5">
+<div class="p-6 border-b border-outline-variant/10 flex justify-between items-center bg-surface-container">
+<div>
+<h3 class="text-lg font-bold">Recent Transactions</h3>
+<p class="text-xs text-on-surface-variant">Consolidated purchase history across all units</p>
+</div>
+<div class="flex gap-2">
+<button class="p-2 rounded-lg bg-surface-variant hover:bg-surface-bright transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="filter_list">filter_list</span>
+</button>
+<button class="p-2 rounded-lg bg-surface-variant hover:bg-surface-bright transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="download">download</span>
+</button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-lowest">
+<th class="px-6 py-4 text-[10px] font-mono uppercase tracking-widest text-on-surface-variant">Transaction ID</th>
+<th class="px-6 py-4 text-[10px] font-mono uppercase tracking-widest text-on-surface-variant">Supplier</th>
+<th class="px-6 py-4 text-[10px] font-mono uppercase tracking-widest text-on-surface-variant">Category</th>
+<th class="px-6 py-4 text-[10px] font-mono uppercase tracking-widest text-on-surface-variant">Value</th>
+<th class="px-6 py-4 text-[10px] font-mono uppercase tracking-widest text-on-surface-variant">Status</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/5">
+<tr class="hover:bg-surface-bright/30 transition-colors group">
+<td class="px-6 py-4 font-mono text-xs text-primary">#TRV-882190</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-400">AM</div>
+<span class="text-sm font-medium">Acme Manufacturing</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="text-xs px-2 py-1 rounded-full bg-secondary-container/20 text-secondary border border-secondary/10">Logistics</span>
+</td>
+<td class="px-6 py-4 font-bold text-sm">₹8,42,000</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span class="text-xs">Processing</span>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-surface-bright/30 transition-colors group">
+<td class="px-6 py-4 font-mono text-xs text-primary">#TRV-882188</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-400">SS</div>
+<span class="text-sm font-medium">Swift Solutions</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="text-xs px-2 py-1 rounded-full bg-primary-container/20 text-primary border border-primary/10">IT Infrastructure</span>
+</td>
+<td class="px-6 py-4 font-bold text-sm">₹12,20,500</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+<span class="text-xs">Verified</span>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-surface-bright/30 transition-colors group">
+<td class="px-6 py-4 font-mono text-xs text-primary">#TRV-882175</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-400">BT</div>
+<span class="text-sm font-medium">Bharat Tech</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="text-xs px-2 py-1 rounded-full bg-secondary-container/20 text-secondary border border-secondary/10">Raw Material</span>
+</td>
+<td class="px-6 py-4 font-bold text-sm">₹45,30,000</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span class="text-xs">Completed</span>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</div>
+</main>
+</div>
+<!-- Footer Shell -->
+<footer class="fixed bottom-0 w-full h-[40px] z-50 bg-slate-950 border-t border-slate-800/30 flex items-center justify-between px-8">
+<span class="text-[11px] uppercase tracking-widest font-mono text-slate-500">© 2024 Truvak Intelligence</span>
+<div class="flex gap-6">
+<a class="text-[11px] uppercase tracking-widest font-mono text-slate-600 hover:text-slate-400 transition-opacity" href="#">Privacy Policy</a>
+<a class="text-[11px] uppercase tracking-widest font-mono text-slate-600 hover:text-slate-400 transition-opacity" href="#">Terms of Service</a>
+</div>
+</footer>
+<!-- Mobile Bottom NavBar (Visible only on small screens) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full bg-slate-900/95 backdrop-blur-xl border-t border-slate-800/50 h-16 flex items-center justify-around z-[60] px-4">
+<a class="flex flex-col items-center text-blue-400" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="text-[10px] mt-1">Home</span>
+</a>
+<a class="flex flex-col items-center text-slate-500" href="#">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+<span class="text-[10px] mt-1">Spend</span>
+</a>
+<a class="flex flex-col items-center text-slate-500" href="#">
+<span class="material-symbols-outlined" data-icon="visibility">visibility</span>
+<span class="text-[10px] mt-1">Watch</span>
+</a>
+<a class="flex flex-col items-center text-slate-500" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="text-[10px] mt-1">Settings</span>
+</a>
+</nav>
+<!-- Splash Screen Simulation Overlay -->
+<div class="fixed inset-0 z-[100] bg-[#10141a] flex flex-col items-center justify-center transition-opacity duration-700 pointer-events-none" id="splash-screen">
+<div class="relative mb-8">
+<div class="absolute inset-0 rounded-full bg-blue-500/20 animate-ping"></div>
+<div class="w-24 h-24 rounded-full border-2 border-blue-400 flex items-center justify-center relative bg-[#10141a]">
+<span class="text-3xl font-black text-blue-400 tracking-tighter">T</span>
+</div>
+</div>
+<h1 class="text-4xl md:text-5xl font-extrabold tracking-tighter mb-2 text-white">Truvak</h1>
+<p class="text-slate-400 text-sm md:text-base font-medium tracking-wide">Trust Intelligence for Indian Commerce</p>
+<div class="absolute bottom-12 flex flex-col items-center">
+<span class="text-blue-400 text-xs font-bold tracking-widest uppercase mb-4">Developed by Snoxx Tech</span>
+<div class="w-12 h-0.5 bg-slate-800 rounded-full overflow-hidden">
+<div class="h-full bg-blue-400 w-full origin-left animate-pulse"></div>
+</div>
+</div>
+</div>
+<script>
+        // Dismiss splash screen after 2.5s as requested
+        setTimeout(() => {
+            const splash = document.getElementById('splash-screen');
+            splash.style.opacity = '0';
+            setTimeout(() => {
+                splash.remove();
+            }, 700);
+        }, 2500);
+    </script>
+</body></html>

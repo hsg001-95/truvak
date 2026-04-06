@@ -1,205 +1,169 @@
-const TRUVAK_API = 'http://127.0.0.1:8000';
+const TRUVAK_API = "http://127.0.0.1:8000";
 
 const SECTION_ORDER = [
-  'product-header',
-  'review-shield',
-  'seller-trust',
-  'price-intel',
-  'delivery-intel',
-  'dark-patterns',
-  'actions',
+  "product-header",
+  "review-shield",
+  "seller-trust",
+  "price-intel",
+  "delivery-intel",
+  "dark-patterns",
+  "actions",
 ];
 
-const state = {
-  authToken: '',
-  pageContext: null,
-  productData: null,
-  sidebar: null,
-  contentArea: null,
-  collapseButton: null,
-  splashScreen: null,
-  originalBodyMarginRight: '',
-  isOpen: true,
+const SECTION_TITLES = {
+  "product-header": "Product Trust",
+  "review-shield": "Review Shield",
+  "seller-trust": "Seller Trust",
+  "price-intel": "Price Intelligence",
+  "delivery-intel": "Delivery and Logistics",
+  "dark-patterns": "Dark Patterns Detected",
+  actions: "Actions",
 };
 
-async function getAuthToken() {
-  try {
-    if (typeof chrome === 'undefined' || !chrome.storage) {
-      state.authToken = '';
-      return state.authToken;
-    }
-
-    const storageArea = chrome.storage.sync || chrome.storage.local;
-    if (!storageArea || !storageArea.get) {
-      state.authToken = '';
-      return state.authToken;
-    }
-
-    const storage = await storageArea.get('truvak_customer_token');
-    state.authToken = storage.truvak_customer_token || '';
-    return state.authToken;
-  } catch (error) {
-    console.error('Failed to get token:', error);
-    state.authToken = '';
-    return state.authToken;
-  }
-}
+const state = {
+  authToken: "",
+  sidebar: null,
+  collapseButton: null,
+  contentArea: null,
+  isOpen: true,
+  pageContext: null,
+};
 
 function ensureStyles() {
-  if (document.getElementById('truvak-customer-sidebar-styles')) return;
+  if (document.getElementById("truvak-customer-sidebar-styles")) {
+    return;
+  }
 
-  const style = document.createElement('style');
-  style.id = 'truvak-customer-sidebar-styles';
+  const style = document.createElement("style");
+  style.id = "truvak-customer-sidebar-styles";
   style.textContent = `
     #truvak-customer-sidebar {
+      position: fixed;
+      top: 0;
+      right: 0;
       width: 300px;
       height: 100vh;
-      position: fixed;
-      right: 0;
-      top: 0;
       background: #0D1117;
       border-left: 1px solid #30363D;
+      color: #E6EDF3;
       z-index: 2147483647;
       display: flex;
       flex-direction: column;
-      box-shadow: -4px 0 20px rgba(0, 0, 0, 0.5);
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      box-shadow: -12px 0 28px rgba(0, 0, 0, 0.45);
       transform: translateX(300px);
-      opacity: 0;
-      transition: transform 220ms ease, opacity 220ms ease;
-      font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      color: #e6edf3;
+      transition: transform 180ms ease;
     }
 
     #truvak-customer-sidebar * {
       box-sizing: border-box;
     }
 
-    #truvak-customer-sidebar .truvak-header {
+    .truvak-sidebar-header {
+      height: 48px;
       background: #161B22;
       border-bottom: 1px solid #30363D;
-      height: 48px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 14px;
-      flex-shrink: 0;
-    }
-
-    #truvak-customer-sidebar .truvak-header-title {
-      color: #ffffff;
-      font-size: 16px;
-      font-weight: 700;
-      letter-spacing: 0.02em;
-    }
-
-    #truvak-customer-sidebar .truvak-collapse-btn {
-      border: 0;
-      background: transparent;
-      color: #8B949E;
-      cursor: pointer;
-      font-size: 18px;
-      line-height: 1;
-      width: 28px;
-      height: 28px;
-      border-radius: 6px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 150ms ease;
-    }
-
-    #truvak-customer-sidebar .truvak-collapse-btn:hover {
-      background: #222a33;
-    }
-
-    #truvak-customer-sidebar .truvak-content {
-      flex: 1;
-      overflow-y: auto;
-      padding: 10px;
-      display: block;
-      background: #0D1117;
-    }
-
-    #truvak-customer-sidebar .truvak-section {
-      border: 1px solid #30363D;
-      background: #111827;
-      border-radius: 10px;
-      margin-bottom: 10px;
-      padding: 10px;
-      min-height: 42px;
-    }
-
-    #truvak-customer-sidebar .truvak-footer {
-      background: #0D1117;
-      border-top: 1px solid #30363D;
-      min-height: 32px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 0 12px;
-      flex-shrink: 0;
-      gap: 8px;
     }
 
-    #truvak-customer-sidebar .truvak-footer-text {
-      color: #8B949E;
-      font-size: 10px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    #truvak-customer-sidebar .truvak-splash {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background: rgba(13, 17, 23, 0.97);
-      z-index: 2;
-      gap: 8px;
-      pointer-events: none;
-    }
-
-    #truvak-customer-sidebar .truvak-brand {
-      color: #ffffff;
-      font-size: 24px;
+    .truvak-sidebar-title {
+      font-size: 16px;
       font-weight: 800;
-      font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    }
-
-    #truvak-customer-sidebar .truvak-credit {
+      letter-spacing: 0.01em;
       color: #2F81F7;
-      font-size: 12px;
     }
 
-    #truvak-customer-sidebar .truvak-spinner {
-      width: 24px;
-      height: 24px;
-      border: 3px solid #1b2430;
-      border-top-color: #2F81F7;
-      border-radius: 50%;
-      animation: truvak-spin 1.1s linear infinite;
-    }
-
-    #truvak-customer-sidebar .truvak-skeleton-loader {
-      width: 100%;
-      height: 18px;
+    .truvak-sidebar-collapse {
+      border: 0;
+      background: transparent;
+      color: #8B949E;
+      cursor: pointer;
+      width: 28px;
+      height: 28px;
       border-radius: 6px;
-      background: linear-gradient(90deg, #1a2330 25%, #233046 37%, #1a2330 63%);
-      background-size: 400% 100%;
-      animation: truvak-shimmer 1.4s ease infinite;
+      font-size: 16px;
+      line-height: 1;
     }
 
-    #truvak-customer-sidebar .truvak-error-message {
-      color: #ff7b72;
+    .truvak-sidebar-collapse:hover {
+      background: #1F2630;
+      color: #E6EDF3;
+    }
+
+    .truvak-sidebar-main {
+      flex: 1;
+      overflow-y: auto;
+      background: #0D1117;
+    }
+
+    .truvak-section {
+      border-bottom: 1px solid #30363D;
+      padding: 12px;
+    }
+
+    .truvak-section-title {
+      margin: 0;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #8B949E;
+      font-weight: 700;
+    }
+
+    .truvak-section-body {
+      margin-top: 8px;
       font-size: 12px;
-      line-height: 1.4;
+      line-height: 1.45;
+      color: #E6EDF3;
     }
 
-    @keyframes truvak-spin {
-      to { transform: rotate(360deg); }
+    .truvak-footer {
+      height: 32px;
+      background: #161B22;
+      border-top: 1px solid #30363D;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 10px;
+      color: #8B949E;
+      font-size: 9px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .truvak-skeleton {
+      height: 14px;
+      border-radius: 4px;
+      background: linear-gradient(90deg, #1F2630 20%, #2D3642 40%, #1F2630 60%);
+      background-size: 240% 100%;
+      animation: truvak-shimmer 1.2s ease infinite;
+    }
+
+    .truvak-error {
+      color: #F85149;
+      font-size: 12px;
+    }
+
+    .truvak-actions-btn {
+      width: 100%;
+      border: 1px solid #2F81F7;
+      border-radius: 8px;
+      background: transparent;
+      color: #2F81F7;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 10px;
+      cursor: pointer;
+    }
+
+    .truvak-actions-btn:hover {
+      background: #2F81F7;
+      color: #E6EDF3;
     }
 
     @keyframes truvak-shimmer {
@@ -211,428 +175,249 @@ function ensureStyles() {
   document.head.appendChild(style);
 }
 
-function sanitizeHtml(input) {
-  if (typeof input !== 'string') return '';
-  return input
-    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
-    .replace(/\son\w+\s*=\s*"[^"]*"/gi, '')
-    .replace(/\son\w+\s*=\s*'[^']*'/gi, '')
-    .replace(/\son\w+\s*=\s*[^\s>]+/gi, '');
+function sanitizeHtml(value) {
+  if (typeof value !== "string") {
+    return "";
+  }
+  return value
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
+    .replace(/\son\w+\s*=\s*"[^"]*"/gi, "")
+    .replace(/\son\w+\s*=\s*'[^']*'/gi, "")
+    .replace(/\son\w+\s*=\s*[^\s>]+/gi, "");
+}
+
+async function getAuthToken() {
+  try {
+    if (typeof chrome === "undefined" || !chrome.storage) {
+      state.authToken = "";
+      return "";
+    }
+
+    const area = chrome.storage.sync || chrome.storage.local;
+    const stored = await area.get("truvak_customer_token");
+    state.authToken = stored.truvak_customer_token || "";
+    return state.authToken;
+  } catch (_error) {
+    state.authToken = "";
+    return "";
+  }
+}
+
+function createSection(sectionId) {
+  const section = document.createElement("section");
+  section.className = "truvak-section";
+  section.id = `truvak-section-${sectionId}`;
+
+  const title = document.createElement("h3");
+  title.className = "truvak-section-title";
+  title.textContent = SECTION_TITLES[sectionId] || sectionId;
+
+  const body = document.createElement("div");
+  body.className = "truvak-section-body";
+  body.id = `truvak-section-body-${sectionId}`;
+  body.textContent = "Waiting for data...";
+
+  section.appendChild(title);
+  section.appendChild(body);
+
+  return section;
 }
 
 function createSidebar() {
   ensureStyles();
 
-  const existing = document.getElementById('truvak-customer-sidebar');
+  const existing = document.getElementById("truvak-customer-sidebar");
   if (existing) {
     state.sidebar = existing;
-    state.contentArea = existing.querySelector('.truvak-content');
-    state.collapseButton = existing.querySelector('.truvak-collapse-btn');
-    state.splashScreen = existing.querySelector('.truvak-splash');
+    state.contentArea = existing.querySelector(".truvak-sidebar-main");
+    state.collapseButton = existing.querySelector(".truvak-sidebar-collapse");
     return existing;
   }
 
-  const sidebar = document.createElement('div');
-  sidebar.id = 'truvak-customer-sidebar';
-  sidebar.setAttribute('aria-label', 'Truvak Customer Sidebar');
+  const sidebar = document.createElement("aside");
+  sidebar.id = "truvak-customer-sidebar";
 
-  const header = document.createElement('div');
-  header.className = 'truvak-header';
+  const header = document.createElement("header");
+  header.className = "truvak-sidebar-header";
 
-  const headerText = document.createElement('div');
-  headerText.className = 'truvak-header-title';
-  headerText.textContent = 'Truvak';
+  const title = document.createElement("div");
+  title.className = "truvak-sidebar-title";
+  title.textContent = "Truvak";
 
-  const collapseButton = document.createElement('button');
-  collapseButton.className = 'truvak-collapse-btn';
-  collapseButton.type = 'button';
-  collapseButton.setAttribute('aria-label', 'Collapse sidebar');
-  collapseButton.textContent = '\u2190';
+  const collapseButton = document.createElement("button");
+  collapseButton.className = "truvak-sidebar-collapse";
+  collapseButton.type = "button";
+  collapseButton.setAttribute("aria-label", "Collapse Truvak sidebar");
+  collapseButton.textContent = "<";
 
-  header.appendChild(headerText);
+  header.appendChild(title);
   header.appendChild(collapseButton);
 
-  const contentArea = document.createElement('div');
-  contentArea.className = 'truvak-content';
+  const main = document.createElement("main");
+  main.className = "truvak-sidebar-main";
 
-  for (const sectionId of SECTION_ORDER) {
-    const section = document.createElement('div');
-    section.className = 'truvak-section';
-    section.id = `truvak-section-${sectionId}`;
-    contentArea.appendChild(section);
-  }
+  SECTION_ORDER.forEach((sectionId) => {
+    main.appendChild(createSection(sectionId));
+  });
 
-  const footer = document.createElement('div');
-  footer.className = 'truvak-footer';
-
-  const footerText1 = document.createElement('div');
-  footerText1.className = 'truvak-footer-text';
-  footerText1.textContent = 'Truvak by Snoxx Tech';
-
-  const footerText2 = document.createElement('div');
-  footerText2.className = 'truvak-footer-text';
-  footerText2.textContent = '\u00a9 2024 Snoxx Tech';
-
-  footer.appendChild(footerText1);
-  footer.appendChild(footerText2);
-
-  const splashScreen = document.createElement('div');
-  splashScreen.className = 'truvak-splash';
-
-  const truvakText = document.createElement('div');
-  truvakText.className = 'truvak-brand';
-  truvakText.textContent = 'Truvak';
-
-  const developerText = document.createElement('div');
-  developerText.className = 'truvak-credit';
-  developerText.textContent = 'Developed by Snoxx Tech';
-
-  const spinner = document.createElement('div');
-  spinner.className = 'truvak-spinner';
-
-  splashScreen.appendChild(truvakText);
-  splashScreen.appendChild(developerText);
-  splashScreen.appendChild(spinner);
+  const footer = document.createElement("footer");
+  footer.className = "truvak-footer";
+  footer.innerHTML = "<span>Truvak by Snoxx Tech</span><span>2024</span>";
 
   sidebar.appendChild(header);
-  sidebar.appendChild(contentArea);
+  sidebar.appendChild(main);
   sidebar.appendChild(footer);
-  sidebar.appendChild(splashScreen);
+
   document.body.appendChild(sidebar);
 
   state.sidebar = sidebar;
-  state.contentArea = contentArea;
+  state.contentArea = main;
   state.collapseButton = collapseButton;
-  state.splashScreen = splashScreen;
 
   return sidebar;
 }
 
-function animateSidebar(sidebar, open) {
-  if (!sidebar) return;
-  if (open) {
-    sidebar.style.transform = 'translateX(0)';
-    sidebar.style.opacity = '1';
-  } else {
-    sidebar.style.transform = 'translateX(300px)';
-    sidebar.style.opacity = '0';
+function updateSidebarVisibility() {
+  if (!state.sidebar) {
+    return;
   }
-}
 
-function updateBodyOffset(open) {
-  if (open) {
-    document.body.style.marginRight = '300px';
-    if (state.contentArea) state.contentArea.style.display = 'block';
-    if (state.collapseButton) state.collapseButton.textContent = '\u2190';
-  } else {
-    document.body.style.marginRight = '40px';
-    if (state.contentArea) state.contentArea.style.display = 'none';
-    if (state.collapseButton) state.collapseButton.textContent = '\u2192';
+  state.sidebar.style.transform = state.isOpen ? "translateX(0)" : "translateX(260px)";
+  if (state.collapseButton) {
+    state.collapseButton.textContent = state.isOpen ? "<" : ">";
   }
 }
 
 async function fetchSectionData(sectionId) {
   try {
-    const query = new URLSearchParams({ section: sectionId });
-    if (state.pageContext && state.pageContext.platform) {
-      query.set('platform', state.pageContext.platform);
-    }
-    if (state.pageContext && state.pageContext.submode) {
-      query.set('submode', state.pageContext.submode);
-    }
-    query.set('url', window.location.href);
+    const query = new URLSearchParams({
+      section: sectionId,
+      url: window.location.href,
+      platform: state.pageContext?.platform || "",
+      submode: state.pageContext?.submode || "",
+    });
 
     const response = await fetch(`${TRUVAK_API}/v1/customer/sidebar?${query.toString()}`, {
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         ...(state.authToken ? { Authorization: `Bearer ${state.authToken}` } : {}),
       },
     });
 
     if (!response.ok) {
-      throw new Error(`Network response was not ok (${response.status})`);
+      throw new Error(`Request failed (${response.status})`);
     }
 
-    return await response.json();
-  } catch (error) {
-    console.error(`Failed to fetch section data for ${sectionId}:`, error);
+    return response.json();
+  } catch (_error) {
     return null;
   }
 }
 
-async function ensureProductData() {
-  if (state.productData) return state.productData;
-
-  if (!window.TruvakExtractor || typeof window.TruvakExtractor.extractPageData !== 'function') {
-    return null;
+function renderSection(sectionId, htmlContent = "") {
+  const body = document.getElementById(`truvak-section-body-${sectionId}`);
+  if (!body) {
+    return;
   }
-
-  const platform = state.pageContext?.platform;
-  if (!platform) return null;
-
-  try {
-    state.productData = await window.TruvakExtractor.extractPageData(platform);
-    return state.productData;
-  } catch (error) {
-    console.warn('[TIP] Failed to extract product data for sidebar sections', error);
-    return null;
-  }
-}
-
-async function tryRenderDarkPatternsLocally() {
-  if (!window.TruvakDarkPatternDetector) return false;
-
-  const hasRunner = typeof window.TruvakDarkPatternDetector.runDarkPatternDetection === 'function';
-  const hasBuilder = typeof window.TruvakDarkPatternDetector.buildDarkPatternHTML === 'function';
-  if (!hasRunner || !hasBuilder) return false;
-
-  const productData = await ensureProductData();
-  const productId =
-    productData?.asin ||
-    productData?.productId ||
-    state.pageContext?.submode ||
-    'unknown-product';
-
-  const originalPrice = Number(productData?.currentPrice || 0);
-  const platform = state.pageContext?.platform || 'unknown';
-
-  try {
-    const patterns = window.TruvakDarkPatternDetector.runDarkPatternDetection(
-      productId,
-      platform,
-      originalPrice
-    );
-
-    const html = window.TruvakDarkPatternDetector.buildDarkPatternHTML(patterns);
-    if (html) {
-      renderSection('dark-patterns', html);
-    } else {
-      renderSection(
-        'dark-patterns',
-        '<div style="font-size:12px;color:#8B949E;">No obvious dark patterns detected on this page.</div>'
-      );
-    }
-
-    return true;
-  } catch (error) {
-    console.warn('[TIP] Local dark-pattern detection failed, falling back to API', error);
-    return false;
-  }
-}
-
-function renderSection(sectionId, htmlContent = '') {
-  const section = document.getElementById(`truvak-section-${sectionId}`);
-  if (!section) return;
-  section.innerHTML = sanitizeHtml(htmlContent);
+  body.innerHTML = sanitizeHtml(htmlContent);
 }
 
 function showSectionLoading(sectionId) {
-  renderSection(sectionId, '<div class="truvak-skeleton-loader"></div>');
+  renderSection(sectionId, "<div class=\"truvak-skeleton\"></div>");
 }
 
 function showSectionError(sectionId, message) {
-  const safeMessage = String(message || 'Something went wrong').replace(/[<>]/g, '');
-  renderSection(sectionId, `<div class="truvak-error-message">${safeMessage}</div>`);
+  const safe = String(message || "Failed to load").replace(/[<>]/g, "");
+  renderSection(sectionId, `<div class=\"truvak-error\">${safe}</div>`);
 }
 
-function ensureActionsControls() {
-  const actionsSection = document.getElementById('truvak-section-actions');
-  if (!actionsSection) return;
-
-  if (actionsSection.querySelector('#truvak-order-sync-controls')) return;
-
-  const controls = document.createElement('div');
-  controls.id = 'truvak-order-sync-controls';
-  controls.style.marginTop = '8px';
-  controls.innerHTML = `
-    <div style="border:1px solid #30363D;border-radius:10px;padding:10px;background:#0d1117;">
-      <button id="truvak-order-sync-btn" type="button" style="width:100%;border:1px solid #30363D;background:#132238;color:#e6edf3;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:600;cursor:pointer;">
-        Sync Orders and Check Competitor Prices
-      </button>
-      <div id="truvak-competitor-summary" style="margin-top:8px;color:#8B949E;font-size:11px;"></div>
-      <div id="sync-section" style="margin-top:8px;"></div>
-    </div>
-  `;
-
-  actionsSection.appendChild(controls);
-}
-
-function summarizeCompetitorResults(results) {
-  const flat = (Array.isArray(results) ? results : []).flat();
-  const found = flat.filter((r) => r && r.found && Number.isFinite(Number(r.price)));
-
-  if (!found.length) {
-    return 'No competitor price matches found for recent synced orders.';
+function ensureActionControls() {
+  const actionsBody = document.getElementById("truvak-section-body-actions");
+  if (!actionsBody) {
+    return;
   }
 
-  const sorted = found.slice().sort((a, b) => Number(a.price) - Number(b.price));
-  const best = sorted[0];
-  const avg = found.reduce((acc, item) => acc + Number(item.price), 0) / found.length;
+  if (actionsBody.querySelector("#truvak-open-dashboard-btn")) {
+    return;
+  }
 
-  return `Found ${found.length} matches across competitors. Best: INR ${Number(best.price).toFixed(2)} on ${String(best.platform || 'unknown')}. Avg: INR ${avg.toFixed(2)}.`;
-}
-
-function attachActionsHandlers() {
-  const syncButton = document.getElementById('truvak-order-sync-btn');
-  const summaryNode = document.getElementById('truvak-competitor-summary');
-  if (!syncButton || syncButton.dataset.bound === '1') return;
-
-  syncButton.dataset.bound = '1';
-  syncButton.addEventListener('click', async () => {
-    if (!window.TruvakOrderScraper || typeof window.TruvakOrderScraper.runOrderScraper !== 'function') {
-      if (summaryNode) {
-        summaryNode.textContent = 'Order scraper module not loaded.';
-      }
-      return;
-    }
-
-    const platform = state.pageContext?.platform || '';
-    syncButton.disabled = true;
-    syncButton.style.opacity = '0.75';
-    if (summaryNode) {
-      summaryNode.textContent = 'Syncing orders...';
-    }
-
-    try {
-      const syncResult = await window.TruvakOrderScraper.runOrderScraper(platform);
-      const orders = Array.isArray(syncResult?.orders) ? syncResult.orders : [];
-
-      if (!orders.length) {
-        if (summaryNode) {
-          summaryNode.textContent = 'No orders available for competitor checks.';
-        }
-        return;
-      }
-
-      if (summaryNode) {
-        summaryNode.textContent = 'Running competitor checks on latest synced orders...';
-      }
-
-      const latestOrders = orders
-        .slice()
-        .sort((a, b) => String(b.orderDate || '').localeCompare(String(a.orderDate || '')))
-        .slice(0, 3);
-
-      const checkResults = await Promise.all(
-        latestOrders.map(async (order) => {
-          const productData =
-            typeof window.TruvakOrderScraper.mapOrderToProductData === 'function'
-              ? window.TruvakOrderScraper.mapOrderToProductData(order, platform)
-              : {
-                title: `Order ${String(order.orderId || '').slice(0, 8)}`,
-                current_price: order.orderValue,
-                brand: platform,
-              };
-
-          if (typeof window.TruvakOrderScraper.fetchCompetitorPrices !== 'function') {
-            return [];
-          }
-
-          return window.TruvakOrderScraper.fetchCompetitorPrices(productData);
-        })
-      );
-
-      if (summaryNode) {
-        summaryNode.textContent = summarizeCompetitorResults(checkResults);
-      }
-    } catch (error) {
-      console.error('[TIP] Failed to sync orders and run competitor checks', error);
-      if (summaryNode) {
-        summaryNode.textContent = 'Failed to complete sync/check flow. Try again.';
-      }
-    } finally {
-      syncButton.disabled = false;
-      syncButton.style.opacity = '1';
-    }
+  const button = document.createElement("button");
+  button.id = "truvak-open-dashboard-btn";
+  button.type = "button";
+  button.className = "truvak-actions-btn";
+  button.textContent = "Open Dashboard";
+  button.addEventListener("click", () => {
+    window.open("http://localhost:5173", "_blank", "noopener,noreferrer");
   });
+
+  actionsBody.appendChild(button);
 }
 
 async function renderAllSections() {
-  for (const sectionId of SECTION_ORDER) {
+  SECTION_ORDER.forEach((sectionId) => {
     showSectionLoading(sectionId);
-  }
+  });
 
   await Promise.all(
     SECTION_ORDER.map(async (sectionId) => {
-      if (sectionId === 'dark-patterns') {
-        const renderedLocally = await tryRenderDarkPatternsLocally();
-        if (renderedLocally) return;
+      const data = await fetchSectionData(sectionId);
+      if (!data) {
+        showSectionError(sectionId, "Failed to load section");
+        return;
       }
 
-      const data = await fetchSectionData(sectionId);
-      if (data && typeof data.content === 'string') {
+      if (typeof data.content === "string") {
         renderSection(sectionId, data.content);
-      } else if (data && data.content != null) {
-        renderSection(sectionId, String(data.content));
-      } else {
-        showSectionError(sectionId, 'Failed to load section data');
+        return;
       }
+
+      if (data.content != null) {
+        renderSection(sectionId, String(data.content));
+        return;
+      }
+
+      showSectionError(sectionId, "No section content available");
     })
   );
 
-  ensureActionsControls();
-  attachActionsHandlers();
+  ensureActionControls();
 }
 
 async function init(pageContext = {}) {
   state.pageContext = pageContext;
-  state.productData = null;
   state.isOpen = true;
 
   await getAuthToken();
-
-  const sidebar = createSidebar();
-  if (!sidebar) return;
-
-  if (!state.originalBodyMarginRight) {
-    state.originalBodyMarginRight = document.body.style.marginRight || '';
-  }
-
-  updateBodyOffset(true);
+  createSidebar();
+  updateSidebarVisibility();
 
   if (state.collapseButton) {
     state.collapseButton.onclick = () => {
       state.isOpen = !state.isOpen;
-      animateSidebar(sidebar, state.isOpen);
-      updateBodyOffset(state.isOpen);
+      updateSidebarVisibility();
     };
   }
 
-  window.requestAnimationFrame(() => {
-    animateSidebar(sidebar, true);
-  });
-
   await renderAllSections();
-
-  if (state.splashScreen) {
-    setTimeout(() => {
-      if (state.splashScreen) {
-        state.splashScreen.style.display = 'none';
-      }
-    }, 550);
-  }
 }
 
 function destroy() {
-  const sidebar = document.getElementById('truvak-customer-sidebar');
+  const sidebar = document.getElementById("truvak-customer-sidebar");
   if (sidebar) {
     sidebar.remove();
   }
 
-  const styleTag = document.getElementById('truvak-customer-sidebar-styles');
-  if (styleTag) {
-    styleTag.remove();
+  const styles = document.getElementById("truvak-customer-sidebar-styles");
+  if (styles) {
+    styles.remove();
   }
 
-  document.body.style.marginRight = state.originalBodyMarginRight || '';
-
+  state.authToken = "";
   state.sidebar = null;
-  state.contentArea = null;
   state.collapseButton = null;
-  state.splashScreen = null;
-  state.pageContext = null;
-  state.productData = null;
+  state.contentArea = null;
   state.isOpen = true;
+  state.pageContext = null;
 }
 
 window.TruvakSidebar = {

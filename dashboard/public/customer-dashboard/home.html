@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Truvak - Home</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-tertiary-fixed-variant": "#614000",
+                      "on-surface": "#dfe2eb",
+                      "error": "#ffb4ab",
+                      "on-secondary-fixed-variant": "#2e4869",
+                      "secondary": "#aec8ef",
+                      "on-error-container": "#ffdad6",
+                      "on-secondary-container": "#9db7dd",
+                      "primary-fixed": "#d3e4ff",
+                      "surface-container-lowest": "#0a0e14",
+                      "primary-container": "#58a6ff",
+                      "error-container": "#93000a",
+                      "surface-container-highest": "#31353c",
+                      "on-secondary": "#163151",
+                      "secondary-container": "#2e4869",
+                      "on-tertiary-fixed": "#281800",
+                      "on-background": "#dfe2eb",
+                      "surface-container": "#1c2026",
+                      "on-primary": "#00315c",
+                      "primary-fixed-dim": "#a2c9ff",
+                      "on-tertiary-container": "#4f3400",
+                      "inverse-primary": "#0060aa",
+                      "primary": "#a2c9ff",
+                      "surface-container-low": "#181c22",
+                      "surface-tint": "#a2c9ff",
+                      "surface-container-high": "#262a31",
+                      "on-primary-container": "#003a6b",
+                      "tertiary-fixed-dim": "#ffba42",
+                      "surface-variant": "#31353c",
+                      "outline": "#8b919d",
+                      "inverse-on-surface": "#2d3137",
+                      "tertiary-container": "#da9600",
+                      "secondary-fixed-dim": "#aec8ef",
+                      "on-surface-variant": "#c0c7d4",
+                      "on-secondary-fixed": "#001c38",
+                      "surface-bright": "#353940",
+                      "surface": "#10141a",
+                      "secondary-fixed": "#d3e4ff",
+                      "on-error": "#690005",
+                      "on-tertiary": "#432c00",
+                      "on-primary-fixed-variant": "#004882",
+                      "inverse-surface": "#dfe2eb",
+                      "on-primary-fixed": "#001c38",
+                      "tertiary": "#ffba42",
+                      "background": "#10141a",
+                      "tertiary-fixed": "#ffddaf",
+                      "outline-variant": "#414752",
+                      "surface-dim": "#10141a"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "fontFamily": {
+                      "headline": ["Inter"],
+                      "body": ["Inter"],
+                      "label": ["Inter"]
+              }
+            },
+          }
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #0d1117; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .glass-card { backdrop-filter: blur(20px); background: rgba(49, 53, 60, 0.6); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="text-on-surface antialiased overflow-x-hidden">
+<!-- Top Navigation Bar -->
+<header class="fixed top-0 w-full flex items-center justify-between px-6 h-16 bg-[#10141a] dark:bg-[#10141a] z-50 font-['Inter'] antialiased">
+<div class="flex items-center gap-4">
+<span class="text-xl font-bold tracking-tight text-[#dfe2eb]">Truvak</span>
+<div class="hidden md:flex gap-6 ml-8">
+<a class="text-[#58A6FF] font-semibold transition-transform active:scale-95" href="#">Home</a>
+<a class="text-[#949db1] hover:bg-[#262a31] transition-colors duration-150 px-3 py-1 rounded" href="#">Products</a>
+<a class="text-[#949db1] hover:bg-[#262a31] transition-colors duration-150 px-3 py-1 rounded" href="#">Watchlist</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant text-sm">search</span>
+<input class="bg-surface-container-highest border-none rounded-lg pl-10 pr-4 py-1.5 text-sm focus:ring-2 focus:ring-primary w-64" placeholder="Search insights..." type="text"/>
+</div>
+<button class="text-[#949db1] hover:bg-[#262a31] p-2 rounded-full transition-colors"><span class="material-symbols-outlined" data-icon="notifications">notifications</span></button>
+<button class="text-[#949db1] hover:bg-[#262a31] p-2 rounded-full transition-colors"><span class="material-symbols-outlined" data-icon="settings">settings</span></button>
+<img alt="User profile" class="w-8 h-8 rounded-full border border-outline-variant" data-alt="Close-up portrait of a professional man with a friendly expression in a modern studio setting with soft lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBQQYWH-aBaVrKlPf884gI2KthSc5t9RqHEA-bvsJluAGT2P1EqJagqwK4cFBLIib1Qitvnec4dZh3Ya--WlSCdmk76E0YXHyz_k2DysEgmHc_cWypFZcxDG0ywvNiFv-_WpOgabOqE_2zru7ce0zAZZ7LQlVuNi_aVFdj1yDUaSKhjUn_s9_LZh7QRsNBXmMksV-sOykAsLU2gde1lB9-cpszMT4Mbi-yA_gWfU1kZXvumbtAjbWFzUCgXP_N-bcGSgFamFCBveA"/>
+</div>
+</header>
+<!-- Side Navigation Bar -->
+<aside class="fixed left-0 top-0 h-screen w-64 flex flex-col p-4 z-40 bg-[#181c22] dark:bg-[#181c22] font-['Inter'] text-sm font-medium hidden md:flex pt-20">
+<div class="flex-1 space-y-2">
+<a class="flex items-center gap-3 px-4 py-3 text-[#58A6FF] bg-[#262a31] rounded-md transition-all duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#949db1] hover:text-[#dfe2eb] hover:bg-[#262a31] transition-all duration-150 rounded-md" href="#">
+<span class="material-symbols-outlined" data-icon="monitoring">monitoring</span>
+<span>Analytics</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#949db1] hover:text-[#dfe2eb] hover:bg-[#262a31] transition-all duration-150 rounded-md" href="#">
+<span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+<span>Assets</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#949db1] hover:text-[#dfe2eb] hover:bg-[#262a31] transition-all duration-150 rounded-md" href="#">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+<span>Activity</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#949db1] hover:text-[#dfe2eb] hover:bg-[#262a31] transition-all duration-150 rounded-md" href="#">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+<span>Reports</span>
+</a>
+</div>
+<div class="border-t border-outline-variant/20 pt-4 space-y-2">
+<a class="flex items-center gap-3 px-4 py-3 text-[#949db1] hover:text-[#dfe2eb] hover:bg-[#262a31] transition-all duration-150 rounded-md" href="#">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+<span>Support</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#949db1] hover:text-[#dfe2eb] hover:bg-[#262a31] transition-all duration-150 rounded-md" href="#">
+<span class="material-symbols-outlined" data-icon="logout">logout</span>
+<span>Logout</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="md:ml-64 pt-20 px-6 pb-12 space-y-8">
+<!-- Header Section -->
+<section class="flex flex-col gap-1">
+<h1 class="text-2xl font-bold text-[#ffffff]">Home</h1>
+<p class="text-sm text-outline">Your trust intelligence overview</p>
+</section>
+<!-- SECTION 1: KPI Cards Grid -->
+<section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+<!-- Card 1 -->
+<div class="bg-surface-container-low p-6 rounded-xl border-l-4 border-primary transition-all hover:bg-surface-container-high">
+<div class="flex justify-between items-start">
+<span class="material-symbols-outlined text-primary" data-icon="inventory">inventory</span>
+<span class="text-[0.6875rem] font-medium tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded uppercase">+12%</span>
+</div>
+<div class="mt-4">
+<h3 class="text-xs font-semibold text-outline-variant uppercase tracking-widest">Products Checked</h3>
+<p class="text-3xl font-bold mt-1 text-on-surface">1,284</p>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-surface-container-low p-6 rounded-xl border-l-4 border-primary transition-all hover:bg-surface-container-high">
+<div class="flex justify-between items-start">
+<span class="material-symbols-outlined text-primary" data-icon="rate_review">rate_review</span>
+</div>
+<div class="mt-4">
+<h3 class="text-xs font-semibold text-outline-variant uppercase tracking-widest">Reviews Analyzed</h3>
+<p class="text-3xl font-bold mt-1 text-on-surface">42.5k</p>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-surface-container-low p-6 rounded-xl border-l-4 border-tertiary transition-all hover:bg-surface-container-high">
+<div class="flex justify-between items-start">
+<span class="material-symbols-outlined text-tertiary" data-icon="savings">savings</span>
+</div>
+<div class="mt-4">
+<h3 class="text-xs font-semibold text-outline-variant uppercase tracking-widest">Estimated Savings</h3>
+<p class="text-3xl font-bold mt-1 text-on-surface">₹12,450</p>
+<p class="text-[0.6875rem] text-outline mt-1 italic">from avoided bad purchases</p>
+</div>
+</div>
+<!-- Card 4 -->
+<div class="bg-surface-container-low p-6 rounded-xl border-l-4 border-error transition-all hover:bg-surface-container-high">
+<div class="flex justify-between items-start">
+<span class="material-symbols-outlined text-error" data-icon="bookmark">bookmark</span>
+<span class="text-[0.6875rem] font-bold text-error">3 Drops</span>
+</div>
+<div class="mt-4">
+<h3 class="text-xs font-semibold text-outline-variant uppercase tracking-widest">Watchlist Items</h3>
+<p class="text-3xl font-bold mt-1 text-on-surface">18</p>
+<p class="text-[0.6875rem] text-error mt-1">3 with price drops</p>
+</div>
+</div>
+</section>
+<!-- SECTION 5: Watchlist Alerts (Conditional Appearance) -->
+<section class="bg-[#F85149]/5 border border-[#F85149]/30 rounded-xl p-4 overflow-hidden">
+<div class="flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-[#F85149]" data-icon="priority_high">priority_high</span>
+<h2 class="font-bold text-[#F85149]">Price Drops Alert</h2>
+</div>
+<div class="flex gap-4 overflow-x-auto no-scrollbar pb-2">
+<!-- Alert Card 1 -->
+<div class="min-w-[280px] bg-surface-container-highest p-4 rounded-lg flex flex-col gap-3">
+<div class="flex justify-between items-start">
+<div class="flex flex-col">
+<span class="text-xs font-medium text-outline">Amazon</span>
+<span class="text-sm font-semibold truncate w-40">Sony WH-1000XM5...</span>
+</div>
+<span class="bg-error/20 text-error text-[0.6875rem] px-2 py-0.5 rounded font-bold">-15%</span>
+</div>
+<div class="flex justify-between items-end">
+<div class="flex flex-col">
+<span class="text-[0.6875rem] text-outline line-through">₹29,990</span>
+<span class="text-lg font-bold text-on-surface">₹24,990</span>
+</div>
+<button class="bg-primary hover:bg-primary-container text-on-primary-fixed px-4 py-1.5 rounded text-xs font-bold transition-all">View</button>
+</div>
+</div>
+<!-- Alert Card 2 -->
+<div class="min-w-[280px] bg-surface-container-highest p-4 rounded-lg flex flex-col gap-3">
+<div class="flex justify-between items-start">
+<div class="flex flex-col">
+<span class="text-xs font-medium text-outline">Flipkart</span>
+<span class="text-sm font-semibold truncate w-40">Apple iPhone 15 Pro...</span>
+</div>
+<span class="bg-error/20 text-error text-[0.6875rem] px-2 py-0.5 rounded font-bold">-8%</span>
+</div>
+<div class="flex justify-between items-end">
+<div class="flex flex-col">
+<span class="text-[0.6875rem] text-outline line-through">₹1,34,900</span>
+<span class="text-lg font-bold text-on-surface">₹1,23,900</span>
+</div>
+<button class="bg-primary hover:bg-primary-container text-on-primary-fixed px-4 py-1.5 rounded text-xs font-bold transition-all">View</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Main Layout Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<!-- SECTION 2: Quick Product Search (2/3 width on desktop) -->
+<div class="lg:col-span-2 space-y-8">
+<section class="bg-[#161B22] p-8 rounded-xl relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+<span class="material-symbols-outlined text-[120px]" data-icon="search_insights">search_insights</span>
+</div>
+<div class="relative z-10 space-y-6">
+<h2 class="text-xl font-bold text-on-surface">Check any product</h2>
+<div class="flex flex-col md:flex-row gap-3">
+<div class="flex-1 relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline" data-icon="link">link</span>
+<input class="w-full bg-surface-container-high border-2 border-transparent focus:border-primary rounded-xl pl-12 pr-4 py-4 text-sm transition-all outline-none" placeholder="Paste Amazon/Flipkart URL or enter product name" type="text"/>
+</div>
+<button class="bg-gradient-to-br from-primary to-primary-container text-on-primary-fixed px-8 py-4 rounded-xl font-bold shadow-lg shadow-primary/20 active:scale-95 transition-all">Check Trust</button>
+</div>
+<p class="text-xs text-outline-variant flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="info">info</span>
+                            We analyze reviews, seller history, and dark patterns in real-time.
+                        </p>
+</div>
+</section>
+<!-- SECTION 3: Recent Activity -->
+<section class="bg-[#161B22] rounded-xl p-6">
+<div class="flex justify-between items-center mb-6">
+<h2 class="text-lg font-bold text-on-surface">Recent Activity</h2>
+<a class="text-primary text-sm font-semibold hover:underline" href="#">View All</a>
+</div>
+<div class="space-y-4">
+<!-- Activity Item 1 -->
+<div class="flex items-center justify-between py-3 group">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 bg-surface-container-high rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" data-icon="laptop_mac">laptop_mac</span>
+</div>
+<div>
+<p class="text-sm font-medium text-on-surface">MacBook Air M2 (8GB RAM, 256GB SSD) - Space Grey</p>
+<div class="flex items-center gap-3 mt-1">
+<span class="text-[0.625rem] font-bold text-[#4ade80] bg-[#4ade80]/10 px-1.5 py-0.5 rounded">AMAZON</span>
+<span class="text-[0.625rem] text-outline">2 hours ago</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-[0.6875rem] font-bold text-on-primary-container bg-primary-container/20 px-2 py-1 rounded">TRUSTWORTHY</span>
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors cursor-pointer" data-icon="chevron_right">chevron_right</span>
+</div>
+</div>
+<!-- Activity Item 2 -->
+<div class="flex items-center justify-between py-3 group">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 bg-surface-container-high rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-tertiary" data-icon="headphones">headphones</span>
+</div>
+<div>
+<p class="text-sm font-medium text-on-surface">Bose QuietComfort 45 Bluetooth Wireless Over Ear</p>
+<div class="flex items-center gap-3 mt-1">
+<span class="text-[0.625rem] font-bold text-[#fbbf24] bg-[#fbbf24]/10 px-1.5 py-0.5 rounded">FLIPKART</span>
+<span class="text-[0.625rem] text-outline">5 hours ago</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-[0.6875rem] font-bold text-tertiary bg-tertiary/10 px-2 py-1 rounded">MIXED</span>
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors cursor-pointer" data-icon="chevron_right">chevron_right</span>
+</div>
+</div>
+<!-- Activity Item 3 -->
+<div class="flex items-center justify-between py-3 group">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 bg-surface-container-high rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-error" data-icon="watch">watch</span>
+</div>
+<div>
+<p class="text-sm font-medium text-on-surface">Refurbished Ultra Watch Series 8 Luxury Edition</p>
+<div class="flex items-center gap-3 mt-1">
+<span class="text-[0.625rem] font-bold text-[#4ade80] bg-[#4ade80]/10 px-1.5 py-0.5 rounded">AMAZON</span>
+<span class="text-[0.625rem] text-outline">Yesterday</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-[0.6875rem] font-bold text-error bg-error/10 px-2 py-1 rounded">SUSPICIOUS</span>
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors cursor-pointer" data-icon="chevron_right">chevron_right</span>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- SECTION 4: Dark Pattern Alerts (Right Sidebar) -->
+<section class="bg-[#161B22] rounded-xl p-6 h-fit sticky top-24">
+<div class="flex items-center justify-between mb-6">
+<div class="flex items-center gap-2">
+<h2 class="text-lg font-bold text-on-surface">Dark Patterns</h2>
+<span class="flex h-2 w-2 rounded-full bg-error animate-pulse"></span>
+</div>
+</div>
+<div class="space-y-6">
+<!-- Alert 1 -->
+<div class="border-l-2 border-error/50 pl-4 py-1">
+<h3 class="text-sm font-bold text-error">Fake Urgency</h3>
+<p class="text-xs text-on-surface mt-1 leading-relaxed">"Only 2 left" detected on Samsung S24 - FlipKart. Data shows inventory is &gt; 100.</p>
+<span class="text-[0.625rem] text-outline mt-2 block">14 mins ago</span>
+</div>
+<!-- Alert 2 -->
+<div class="border-l-2 border-error/50 pl-4 py-1">
+<h3 class="text-sm font-bold text-error">Sneaking into Basket</h3>
+<p class="text-xs text-on-surface mt-1 leading-relaxed">Protection plan auto-added for Lenovo Legion Laptop checkout flow.</p>
+<span class="text-[0.625rem] text-outline mt-2 block">1 hour ago</span>
+</div>
+<!-- Alert 3 -->
+<div class="border-l-2 border-error/50 pl-4 py-1">
+<h3 class="text-sm font-bold text-error">Confirm Shaming</h3>
+<p class="text-xs text-on-surface mt-1 leading-relaxed">Prime exit flow uses manipulative language: "No, I don't want savings."</p>
+<span class="text-[0.625rem] text-outline mt-2 block">3 hours ago</span>
+</div>
+</div>
+<button class="w-full mt-8 py-3 border border-outline-variant hover:bg-surface-container-high rounded-lg text-xs font-bold text-outline-variant transition-all">Report New Pattern</button>
+</section>
+</div>
+</main>
+<!-- Contextual FAB -->
+<div class="fixed bottom-8 right-8 z-50">
+<button class="bg-gradient-to-br from-primary to-primary-container p-4 rounded-2xl shadow-2xl shadow-primary/40 hover:scale-110 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-on-primary-fixed" data-icon="add">add</span>
+</button>
+</div>
+</body></html>

@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Truvak - Settings</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;family=JetBrains+Mono&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary": "#ffba42",
+                        "on-secondary-container": "#9db7dd",
+                        "on-tertiary-fixed": "#281800",
+                        "on-secondary-fixed-variant": "#2e4869",
+                        "outline-variant": "#414752",
+                        "secondary-container": "#2e4869",
+                        "inverse-primary": "#0060aa",
+                        "surface-tint": "#a2c9ff",
+                        "error-container": "#93000a",
+                        "tertiary-fixed": "#ffddaf",
+                        "on-primary": "#00315c",
+                        "on-primary-fixed-variant": "#004882",
+                        "on-error-container": "#ffdad6",
+                        "secondary": "#aec8ef",
+                        "surface-container-lowest": "#0a0e14",
+                        "on-primary-fixed": "#001c38",
+                        "error": "#ffb4ab",
+                        "background": "#10141a",
+                        "surface-container-low": "#181c22",
+                        "surface": "#10141a",
+                        "secondary-fixed-dim": "#aec8ef",
+                        "outline": "#8b919d",
+                        "primary-fixed": "#d3e4ff",
+                        "surface-bright": "#353940",
+                        "on-secondary": "#163151",
+                        "surface-container": "#1c2026",
+                        "on-secondary-fixed": "#001c38",
+                        "primary-container": "#58a6ff",
+                        "on-background": "#dfe2eb",
+                        "surface-variant": "#31353c",
+                        "secondary-fixed": "#d3e4ff",
+                        "on-surface-variant": "#c0c7d4",
+                        "surface-container-highest": "#31353c",
+                        "on-error": "#690005",
+                        "tertiary-container": "#da9600",
+                        "on-tertiary-container": "#4f3400",
+                        "on-tertiary-fixed-variant": "#614000",
+                        "surface-container-high": "#262a31",
+                        "inverse-on-surface": "#2d3137",
+                        "primary": "#a2c9ff",
+                        "surface-dim": "#10141a",
+                        "primary-fixed-dim": "#a2c9ff",
+                        "inverse-surface": "#dfe2eb",
+                        "tertiary-fixed-dim": "#ffba42",
+                        "on-tertiary": "#432c00",
+                        "on-surface": "#dfe2eb",
+                        "on-primary-container": "#003a6b"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"],
+                        "mono": ["JetBrains Mono"]
+                    }
+                },
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body { background-color: #0D1117; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0D1117; }
+        ::-webkit-scrollbar-thumb { background: #30363D; border-radius: 10px; }
+    </style>
+</head>
+<body class="font-body text-on-background selection:bg-primary-container selection:text-on-primary-container">
+<!-- SideNavBar (Execution from JSON) -->
+<aside class="h-screen w-64 fixed left-0 top-0 z-40 bg-[#181c22] dark:bg-[#181c22] flex flex-col py-6">
+<div class="px-6 mb-10">
+<h1 class="text-lg font-bold tracking-tighter text-white">Truvak</h1>
+<p class="text-xs text-slate-500 font-inter tracking-tight">Intelligent Monolith</p>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center px-6 py-3 space-x-3 text-slate-400 hover:text-slate-200 hover:bg-[#262a31] transition-colors duration-150 ease-out" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="font-inter tracking-tight text-sm">Home</span>
+</a>
+<a class="flex items-center px-6 py-3 space-x-3 text-slate-400 hover:text-slate-200 hover:bg-[#262a31] transition-colors duration-150 ease-out" href="#">
+<span class="material-symbols-outlined" data-icon="insights">insights</span>
+<span class="font-inter tracking-tight text-sm">Spend Analysis</span>
+</a>
+<a class="flex items-center px-6 py-3 space-x-3 text-slate-400 hover:text-slate-200 hover:bg-[#262a31] transition-colors duration-150 ease-out" href="#">
+<span class="material-symbols-outlined" data-icon="visibility">visibility</span>
+<span class="font-inter tracking-tight text-sm">Watchlist</span>
+</a>
+<a class="flex items-center px-6 py-3 space-x-3 text-slate-400 hover:text-slate-200 hover:bg-[#262a31] transition-colors duration-150 ease-out" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="font-inter tracking-tight text-sm">Buyer Profile</span>
+</a>
+<a class="flex items-center px-6 py-3 space-x-3 text-[#a2c9ff] font-semibold border-r-2 border-[#58A6FF] bg-[#262a31] transition-colors duration-150 ease-out" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-inter tracking-tight text-sm">Settings</span>
+</a>
+</nav>
+<div class="px-6 mt-auto">
+<div class="flex items-center space-x-3 p-3 rounded-lg bg-surface-container">
+<div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs">JD</div>
+<div class="flex-1 overflow-hidden">
+<p class="text-xs font-semibold text-white truncate">John Doe</p>
+<p class="text-[10px] text-slate-500 truncate">Enterprise Plan</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- TopNavBar (Execution from JSON) -->
+<header class="fixed top-0 right-0 h-16 left-64 z-30 bg-[#10141a]/80 backdrop-blur-xl flex justify-between items-center px-8 w-full">
+<div class="flex items-center bg-surface-container-high px-4 py-2 rounded-lg w-96">
+<span class="material-symbols-outlined text-slate-400 text-sm" data-icon="search">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm text-on-surface ml-2 w-full" placeholder="Search settings..." type="text"/>
+</div>
+<div class="flex items-center space-x-6">
+<button class="text-slate-400 hover:text-white transition-opacity">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="text-slate-400 hover:text-white transition-opacity">
+<span class="material-symbols-outlined" data-icon="help_outline">help_outline</span>
+</button>
+<div class="h-4 w-px bg-outline-variant"></div>
+<button class="text-slate-400 hover:text-white transition-opacity font-inter text-sm font-medium">Logout</button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-64 pt-16 min-h-screen p-6 space-y-6">
+<!-- Page Header -->
+<div class="mb-8 px-2">
+<h2 class="text-2xl font-bold text-white tracking-tight">Settings</h2>
+<p class="text-on-surface-variant text-sm mt-1">Manage your intelligent monolith configuration and data privacy.</p>
+</div>
+<div class="grid grid-cols-12 gap-6">
+<!-- Left Column: Primary Settings -->
+<div class="col-span-12 lg:col-span-8 space-y-6">
+<!-- Section 1: Account Settings -->
+<section class="bg-[#161B22] border border-[#30363D] rounded-lg p-6 overflow-hidden">
+<div class="flex items-center justify-between mb-6">
+<div class="flex items-center space-x-2">
+<span class="material-symbols-outlined text-primary" data-icon="manage_accounts">manage_accounts</span>
+<h3 class="text-lg font-semibold text-white">Account Settings</h3>
+</div>
+</div>
+<div class="space-y-4">
+<div class="flex items-center justify-between py-3 border-b border-outline-variant/30">
+<div>
+<p class="text-xs font-medium text-on-surface-variant uppercase tracking-wider mb-1">Email Address</p>
+<p class="text-sm font-mono text-on-surface">j***n.d**e@example.com</p>
+</div>
+<button class="px-4 py-1.5 border border-outline-variant text-primary text-xs font-semibold rounded-lg hover:bg-surface-container-high transition-colors">Edit</button>
+</div>
+<div class="flex items-center justify-between py-3 border-b border-outline-variant/30">
+<div>
+<p class="text-xs font-medium text-on-surface-variant uppercase tracking-wider mb-1">PIN Code</p>
+<div class="flex items-center space-x-2">
+<span class="text-sm font-mono text-on-surface">****</span>
+<span class="text-[10px] bg-surface-container-highest px-2 py-0.5 rounded text-primary">In-App Purchase Protection</span>
+</div>
+</div>
+<button class="px-4 py-1.5 border border-outline-variant text-primary text-xs font-semibold rounded-lg hover:bg-surface-container-high transition-colors">Change PIN</button>
+</div>
+<div class="flex items-center justify-between py-3 border-b border-outline-variant/30">
+<div>
+<p class="text-xs font-medium text-on-surface-variant uppercase tracking-wider mb-1">Password</p>
+<p class="text-lg leading-none tracking-widest text-on-surface mt-1">••••••••••••</p>
+</div>
+<button class="px-4 py-1.5 border border-outline-variant text-primary text-xs font-semibold rounded-lg hover:bg-surface-container-high transition-colors">Update</button>
+</div>
+<div class="flex items-center justify-between py-3">
+<div>
+<p class="text-xs font-medium text-on-surface-variant uppercase tracking-wider mb-1">Member Since</p>
+<p class="text-sm font-mono text-on-surface">October 14, 2023</p>
+</div>
+<span class="text-[10px] text-on-tertiary-fixed-variant bg-tertiary/20 px-2 py-1 rounded-full font-bold">LEGACY STATUS</span>
+</div>
+</div>
+</section>
+<!-- Section 2: Alert Preferences -->
+<section class="bg-[#161B22] border border-[#30363D] rounded-lg p-6">
+<div class="flex items-center space-x-2 mb-8">
+<span class="material-symbols-outlined text-primary" data-icon="notifications_active">notifications_active</span>
+<h3 class="text-lg font-semibold text-white">Alert Preferences</h3>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6 mb-10">
+<div class="flex items-center justify-between">
+<div>
+<p class="text-sm font-medium text-white">Price Drop Alerts</p>
+<p class="text-xs text-on-surface-variant">Notify when watchlist items drop in price</p>
+</div>
+<div class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-9 h-5 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+</div>
+</div>
+<div class="flex items-center justify-between">
+<div>
+<p class="text-sm font-medium text-white">Dark Pattern Warnings</p>
+<p class="text-xs text-on-surface-variant">Identify manipulative retail UI tactics</p>
+</div>
+<div class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-9 h-5 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+</div>
+</div>
+<div class="flex items-center justify-between">
+<div>
+<p class="text-sm font-medium text-white">Review Shield</p>
+<p class="text-xs text-on-surface-variant">Filter out suspected bot-generated reviews</p>
+</div>
+<div class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-9 h-5 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left record-2px after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+</div>
+</div>
+<div class="flex items-center justify-between">
+<div>
+<p class="text-sm font-medium text-white">Order Sync</p>
+<p class="text-xs text-on-surface-variant">Automatically import orders from connected accounts</p>
+</div>
+<div class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox"/>
+<div class="w-9 h-5 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-low rounded-lg p-6">
+<div class="flex items-end justify-between mb-4">
+<div>
+<h4 class="text-sm font-semibold text-white">Default Alert Threshold</h4>
+<p class="text-xs text-on-surface-variant">Sensitivity for detecting price anomalies</p>
+</div>
+<span class="text-3xl font-extrabold text-primary tracking-tighter">15%</span>
+</div>
+<input class="w-full h-1.5 bg-surface-container-highest rounded-lg appearance-none cursor-pointer accent-primary" max="30" min="1" type="range" value="15"/>
+<div class="flex justify-between mt-2">
+<span class="text-[10px] font-mono text-outline">1%</span>
+<span class="text-[10px] font-mono text-outline">30%</span>
+</div>
+</div>
+</section>
+<!-- Section 3: Your Data -->
+<section class="bg-[#161B22] border border-[#30363D] rounded-lg p-6">
+<div class="flex items-center space-x-2 mb-6">
+<span class="material-symbols-outlined text-primary" data-icon="database">database</span>
+<h3 class="text-lg font-semibold text-white">Your Data</h3>
+</div>
+<div class="grid grid-cols-3 gap-4 mb-8">
+<div class="bg-surface-container-high p-4 rounded-lg border-l-2 border-primary">
+<p class="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold mb-1">Orders Stored</p>
+<p class="text-xl font-mono font-bold text-white">1,284</p>
+</div>
+<div class="bg-surface-container-high p-4 rounded-lg border-l-2 border-secondary">
+<p class="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold mb-1">Price Points</p>
+<p class="text-xl font-mono font-bold text-white">42.9k</p>
+</div>
+<div class="bg-surface-container-high p-4 rounded-lg border-l-2 border-tertiary">
+<p class="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold mb-1">Reviews Analyzed</p>
+<p class="text-xl font-mono font-bold text-white">312</p>
+</div>
+</div>
+<div class="flex flex-wrap gap-4">
+<button class="flex items-center space-x-2 px-5 py-2.5 border border-primary text-primary text-sm font-semibold rounded-lg hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="download">download</span>
+<span>Export My Data</span>
+</button>
+<button class="flex items-center space-x-2 px-5 py-2.5 border border-tertiary text-tertiary text-sm font-semibold rounded-lg hover:bg-tertiary/10 transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="history">history</span>
+<span>Delete Order History</span>
+</button>
+<button class="flex items-center space-x-2 px-5 py-2.5 border border-error text-error text-sm font-semibold rounded-lg hover:bg-error/10 transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="delete_forever">delete_forever</span>
+<span>Delete All My Data</span>
+</button>
+</div>
+</section>
+</div>
+<!-- Right Column: System Status & Privacy -->
+<div class="col-span-12 lg:col-span-4 space-y-6">
+<!-- Section 4: Privacy Commitment -->
+<section class="bg-[rgba(47,129,247,0.06)] border border-[#2F81F7]/30 rounded-lg p-6">
+<h3 class="text-[15px] font-bold text-[#2F81F7] mb-4 uppercase tracking-tight">Privacy Commitment</h3>
+<ul class="space-y-4">
+<li class="flex items-start space-x-3">
+<span class="material-symbols-outlined text-[#2F81F7] text-sm mt-0.5" data-icon="verified_user">verified_user</span>
+<p class="text-xs text-on-surface-variant leading-relaxed">End-to-end encryption for all synced purchase metadata using AES-256 standards.</p>
+</li>
+<li class="flex items-start space-x-3">
+<span class="material-symbols-outlined text-[#2F81F7] text-sm mt-0.5" data-icon="gpp_good">gpp_good</span>
+<p class="text-xs text-on-surface-variant leading-relaxed">Full GDPR and CCPA compliance with instant data portability exports.</p>
+</li>
+<li class="flex items-start space-x-3">
+<span class="material-symbols-outlined text-[#2F81F7] text-sm mt-0.5" data-icon="visibility_off">visibility_off</span>
+<p class="text-xs text-on-surface-variant leading-relaxed">Zero-knowledge architecture: Truvak staff cannot view your specific itemized orders.</p>
+</li>
+<li class="flex items-start space-x-3">
+<span class="material-symbols-outlined text-[#2F81F7] text-sm mt-0.5" data-icon="sync_saved_locally">sync_saved_locally</span>
+<p class="text-xs text-on-surface-variant leading-relaxed">Localized processing: Anomaly detection occurs in your browser, not our servers.</p>
+</li>
+</ul>
+<div class="mt-8 pt-4 border-t border-[#2F81F7]/20">
+<a class="text-xs font-semibold text-[#2F81F7] hover:underline flex items-center space-x-1" href="#">
+<span>Read Full Privacy Notice</span>
+<span class="material-symbols-outlined text-xs" data-icon="open_in_new">open_in_new</span>
+</a>
+</div>
+</section>
+<!-- Section 5: Extension Status -->
+<section class="bg-[#161B22] border border-[#30363D] rounded-lg p-6">
+<div class="flex items-center space-x-2 mb-6">
+<span class="material-symbols-outlined text-primary" data-icon="extension">extension</span>
+<h3 class="text-sm font-semibold text-white">Extension Status</h3>
+</div>
+<div class="space-y-6">
+<div class="flex items-center justify-between">
+<div class="flex items-center space-x-3">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+</span>
+<span class="text-sm text-on-surface font-medium">Extension Connected</span>
+</div>
+<span class="text-[10px] font-mono text-on-surface-variant bg-surface-container px-2 py-0.5 rounded">v1.2.4</span>
+</div>
+<div class="bg-surface-container-high rounded-lg p-4 space-y-3">
+<div class="flex items-center justify-between text-[11px]">
+<span class="text-on-surface-variant font-mono">API GATEWAY</span>
+<div class="flex items-center space-x-1">
+<span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+<span class="text-emerald-400 font-bold">OPERATIONAL</span>
+</div>
+</div>
+<div class="flex items-center justify-between text-[11px]">
+<span class="text-on-surface-variant font-mono">MODEL LATENCY</span>
+<span class="text-on-surface font-bold">142ms</span>
+</div>
+</div>
+<button class="w-full py-2.5 bg-surface-container hover:bg-surface-container-highest text-white text-xs font-semibold rounded-lg transition-colors flex items-center justify-center space-x-2">
+<span class="material-symbols-outlined text-sm" data-icon="refresh">refresh</span>
+<span>Force Sync Extension</span>
+</button>
+</div>
+</section>
+<!-- Help Card -->
+<div class="relative overflow-hidden rounded-lg group">
+<img class="w-full h-32 object-cover opacity-40 group-hover:scale-105 transition-transform duration-700" data-alt="abstract high-tech circuit board with blue glowing neon lines and data stream visual style" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDoulst_A0O2mWdv-gIPLSBidEFqJxrCYfUn8a13NqKDzQb64tvm_5Tc2h9sdXJ8qrT1T7SRbwc1vwglkcisFrjwO8dABX50_QUxzw2ypoFkUisuMZ7aAdLr4PiNVYJYNzC36XisqEnqxsOlNznrEGFVZlKYalK3VDxp5MaVL0fnSkZ3JUgceDjVJNyqPNN8ZusQvMFc9TfG_eOicDf8eXXwI16vE56e63dQUDIJ0V8RtudGRQlNlxIH2ZKA3DCsu2RyUYLU2emIA"/>
+<div class="absolute inset-0 bg-gradient-to-t from-[#10141a] to-transparent"></div>
+<div class="absolute bottom-4 left-4 right-4">
+<p class="text-xs font-bold text-white mb-1">Confused about a setting?</p>
+<a class="text-[10px] text-primary font-bold uppercase tracking-widest hover:text-white transition-colors" href="#">Consult the Manual</a>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

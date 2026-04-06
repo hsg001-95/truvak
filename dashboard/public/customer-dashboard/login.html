@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Sign In - Trust Intelligence</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-low": "#181c22",
+                        "error": "#ffb4ab",
+                        "on-primary-container": "#003a6b",
+                        "on-secondary-fixed-variant": "#2e4869",
+                        "surface-tint": "#a2c9ff",
+                        "surface-container-lowest": "#0a0e14",
+                        "surface-container": "#1c2026",
+                        "primary-fixed-dim": "#a2c9ff",
+                        "on-primary-fixed-variant": "#004882",
+                        "tertiary-fixed": "#ffddaf",
+                        "on-surface-variant": "#c0c7d4",
+                        "on-background": "#dfe2eb",
+                        "secondary": "#aec8ef",
+                        "inverse-on-surface": "#2d3137",
+                        "on-secondary": "#163151",
+                        "inverse-primary": "#0060aa",
+                        "on-tertiary-fixed": "#281800",
+                        "on-primary": "#00315c",
+                        "inverse-surface": "#dfe2eb",
+                        "secondary-fixed": "#d3e4ff",
+                        "secondary-container": "#2e4869",
+                        "primary-container": "#58a6ff",
+                        "surface-variant": "#31353c",
+                        "outline-variant": "#414752",
+                        "surface-dim": "#10141a",
+                        "surface": "#10141a",
+                        "on-secondary-container": "#9db7dd",
+                        "on-primary-fixed": "#001c38",
+                        "secondary-fixed-dim": "#aec8ef",
+                        "tertiary-container": "#da9600",
+                        "surface-container-highest": "#31353c",
+                        "tertiary-fixed-dim": "#ffba42",
+                        "primary": "#a2c9ff",
+                        "on-error": "#690005",
+                        "on-secondary-fixed": "#001c38",
+                        "on-surface": "#dfe2eb",
+                        "surface-bright": "#353940",
+                        "surface-container-high": "#262a31",
+                        "tertiary": "#ffba42",
+                        "on-error-container": "#ffdad6",
+                        "on-tertiary-container": "#4f3400",
+                        "on-tertiary-fixed-variant": "#614000",
+                        "background": "#10141a",
+                        "outline": "#8b919d",
+                        "error-container": "#93000a",
+                        "on-tertiary": "#432c00",
+                        "primary-fixed": "#d3e4ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d1117;
+        }
+        .glass-panel {
+            background: rgba(22, 27, 34, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid #30363d;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen items-center justify-center p-4 relative overflow-hidden">
+<!-- Ambient Background Decoration (Intelligent Monolith Aesthetic) -->
+<div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/10 blur-[120px] rounded-full pointer-events-none"></div>
+<div class="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-secondary/10 blur-[100px] rounded-full pointer-events-none"></div>
+<!-- Success Toast Notification -->
+<div class="fixed top-8 right-8 z-50 flex items-center gap-3 bg-surface-container-high border border-primary/30 p-4 rounded-xl shadow-2xl animate-in slide-in-from-right-10">
+<div class="flex items-center justify-center w-8 h-8 rounded-full bg-primary/20 text-primary">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<div>
+<p class="text-sm font-medium text-on-surface">Connection Secure</p>
+<p class="text-xs text-on-surface-variant">System ready for authentication.</p>
+</div>
+<button class="ml-4 text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<!-- Main Login Card -->
+<main class="w-full max-w-[400px] z-10">
+<div class="glass-panel rounded-[12px] p-8 shadow-2xl">
+<!-- Logo and Branding -->
+<header class="text-center mb-8">
+<h1 class="text-[28px] font-bold tracking-tighter text-white mb-2">Truvak</h1>
+<p class="text-[14px] text-on-surface-variant font-medium tracking-tight">Sign in to your account</p>
+</header>
+<!-- Authentication Form -->
+<form class="space-y-6">
+<!-- Email Input -->
+<div class="space-y-2">
+<label class="block text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider" for="email">Email Address</label>
+<div class="relative">
+<input class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-4 py-3 text-on-surface placeholder:text-outline-variant focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all duration-200 outline-none" id="email" placeholder="your@email.com" type="email"/>
+</div>
+</div>
+<!-- Password Input -->
+<div class="space-y-2">
+<div class="flex justify-between items-center">
+<label class="block text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider" for="password">Password</label>
+<a class="text-[11px] text-primary hover:text-primary-container font-medium transition-colors" href="#">Forgot?</a>
+</div>
+<div class="relative">
+<input class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-4 py-3 text-on-surface placeholder:text-outline-variant focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all duration-200 outline-none" id="password" placeholder="••••••••" type="password"/>
+<button class="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface transition-colors" type="button">
+<span class="material-symbols-outlined text-[20px]" data-icon="visibility">visibility</span>
+</button>
+</div>
+</div>
+<!-- Sign In Button (Loading State) -->
+<button class="w-full bg-[#2F81F7] hover:bg-[#2167d1] text-white font-semibold py-3.5 rounded-lg flex items-center justify-center gap-3 transition-all duration-200 active:scale-[0.98] shadow-lg shadow-primary/20" type="submit">
+<svg class="animate-spin h-5 w-5 text-white" fill="none" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+<path class="opacity-75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" fill="currentColor"></path>
+</svg>
+<span>Sign In</span>
+</button>
+<!-- Error Alert -->
+<div class="border border-error/50 bg-error-container/10 rounded-lg p-4 flex gap-3 items-start">
+<span class="material-symbols-outlined text-error text-[20px]" style="font-variation-settings: 'FILL' 1;">error</span>
+<div>
+<p class="text-xs text-on-error-container font-medium leading-tight">API Authentication failed. Please verify your credentials and try again.</p>
+</div>
+</div>
+</form>
+<!-- Registration Link -->
+<footer class="mt-8 pt-6 border-t border-[#30363d]/50 text-center">
+<p class="text-[13px] text-on-surface-variant">
+                    Don't have an account? 
+                    <a class="text-[#2F81F7] hover:text-[#58a6ff] font-semibold transition-colors" href="#">Register</a>
+</p>
+</footer>
+</div>
+<!-- Footer Credits -->
+<div class="mt-8 text-center">
+<p class="text-[12px] text-outline tracking-wider font-medium">Developed by <span class="text-on-surface-variant">Snoxx Tech</span></p>
+</div>
+</main>
+<!-- Decoration Element: The Monolith Node -->
+<div class="hidden lg:block absolute bottom-12 left-12">
+<div class="flex items-center gap-4 text-outline-variant">
+<div class="w-12 h-[1px] bg-outline-variant/30"></div>
+<span class="text-[10px] uppercase tracking-[0.3em] font-bold">Encrypted Workspace</span>
+</div>
+</div>
+</body></html>

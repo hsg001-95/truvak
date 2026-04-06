@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Watchlist - Truvak</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-fixed-dim": "#a2c9ff",
+                        "primary-container": "#58a6ff",
+                        "outline": "#8b919d",
+                        "on-primary-fixed": "#001c38",
+                        "primary": "#a2c9ff",
+                        "on-primary": "#00315c",
+                        "surface-variant": "#31353c",
+                        "surface-dim": "#10141a",
+                        "on-tertiary-fixed-variant": "#614000",
+                        "on-secondary-fixed-variant": "#2e4869",
+                        "secondary": "#aec8ef",
+                        "tertiary-fixed-dim": "#ffba42",
+                        "on-primary-container": "#003a6b",
+                        "on-error": "#690005",
+                        "surface-container-high": "#262a31",
+                        "secondary-fixed": "#d3e4ff",
+                        "inverse-on-surface": "#2d3137",
+                        "secondary-container": "#2e4869",
+                        "on-background": "#dfe2eb",
+                        "secondary-fixed-dim": "#aec8ef",
+                        "error-container": "#93000a",
+                        "on-secondary-container": "#9db7dd",
+                        "inverse-surface": "#dfe2eb",
+                        "tertiary-container": "#da9600",
+                        "surface-tint": "#a2c9ff",
+                        "on-error-container": "#ffdad6",
+                        "tertiary": "#ffba42",
+                        "on-tertiary-container": "#4f3400",
+                        "on-surface-variant": "#c0c7d4",
+                        "surface-bright": "#353940",
+                        "outline-variant": "#414752",
+                        "on-secondary-fixed": "#001c38",
+                        "primary-fixed": "#d3e4ff",
+                        "on-primary-fixed-variant": "#004882",
+                        "on-surface": "#dfe2eb",
+                        "inverse-primary": "#0060aa",
+                        "surface-container-lowest": "#0a0e14",
+                        "on-tertiary": "#432c00",
+                        "tertiary-fixed": "#ffddaf",
+                        "surface-container-low": "#181c22",
+                        "surface": "#10141a",
+                        "surface-container-highest": "#31353c",
+                        "background": "#10141a",
+                        "on-tertiary-fixed": "#281800",
+                        "error": "#ffb4ab",
+                        "surface-container": "#1c2026",
+                        "on-secondary": "#163151"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #0d1117; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .glass-panel { backdrop-filter: blur(20px); background: rgba(49, 53, 60, 0.6); }
+    </style>
+</head>
+<body class="flex min-h-screen text-on-surface selection:bg-primary-container selection:text-on-primary-container">
+<!-- SideNavBar -->
+<aside class="hidden md:flex flex-col h-screen p-4 gap-2 bg-[#181c22] dark:bg-[#181c22] w-64 fixed left-0 top-0 border-r border-outline-variant/15">
+<div class="mb-8 px-2">
+<h1 class="text-lg font-black text-white">Truvak</h1>
+<p class="text-xs text-on-surface-variant/70 uppercase tracking-widest">Intelligence Platform</p>
+</div>
+<nav class="flex flex-col gap-1 flex-1">
+<a class="flex items-center gap-3 px-3 py-2 text-[#94a3b8] hover:text-[#dfe2eb] hover:bg-[#262a31] transition-all duration-200 rounded-md font-['Inter'] text-sm font-medium" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+                Home
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#94a3b8] hover:text-[#dfe2eb] hover:bg-[#262a31] transition-all duration-200 rounded-md font-['Inter'] text-sm font-medium" href="#">
+<span class="material-symbols-outlined" data-icon="query_stats">query_stats</span>
+                Spend Analysis
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#58A6FF] bg-[#262a31] rounded-md font-['Inter'] text-sm font-medium" href="#">
+<span class="material-symbols-outlined" data-icon="visibility">visibility</span>
+                Watchlist
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#94a3b8] hover:text-[#dfe2eb] hover:bg-[#262a31] transition-all duration-200 rounded-md font-['Inter'] text-sm font-medium" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+                Profile
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#94a3b8] hover:text-[#dfe2eb] hover:bg-[#262a31] transition-all duration-200 rounded-md font-['Inter'] text-sm font-medium" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+                Settings
+            </a>
+</nav>
+<div class="mt-auto pt-4 border-t border-outline-variant/15">
+<div class="flex items-center gap-3 px-2">
+<div class="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-primary-container flex items-center justify-center text-on-primary-fixed font-bold text-xs">AC</div>
+<div class="overflow-hidden">
+<p class="text-sm font-semibold truncate text-on-surface">Alex Chen</p>
+<p class="text-xs text-on-surface-variant truncate">Premium Plan</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 md:ml-64 flex flex-col min-h-screen">
+<!-- TopAppBar -->
+<header class="bg-[#10141a] dark:bg-[#10141a] flex justify-between items-center px-8 h-16 w-full sticky top-0 z-50 shadow-[0_8px_32px_rgba(223,226,235,0.06)] bg-[#181c22]">
+<div class="text-xl font-bold text-[#dfe2eb] tracking-tighter">Truvak</div>
+<div class="text-[#94a3b8] font-['Inter'] antialiased tracking-tight">Hi Alex Chen</div>
+<div class="flex items-center gap-4">
+<span class="text-[#94a3b8] text-sm">Hello, User</span>
+<button class="text-[#58A6FF] font-semibold text-sm hover:bg-[#31353c] px-3 py-1.5 rounded transition-colors duration-150 scale-95 active:scale-90 transition-transform">Logout</button>
+</div>
+</header>
+<!-- Canvas Container -->
+<div class="p-6 md:p-8 max-w-7xl w-full mx-auto space-y-6">
+<!-- Page Header -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div>
+<h2 class="text-[24px] font-bold text-white tracking-tight">My Watchlist</h2>
+<p class="text-[14px] text-on-surface-variant mt-1">14 products saved</p>
+</div>
+<div class="flex items-center gap-3">
+<button class="px-4 py-2 border border-outline-variant text-on-surface hover:bg-surface-container-high transition-colors text-sm rounded-lg flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="ios_share">ios_share</span>
+                        Export CSV
+                    </button>
+</div>
+</div>
+<!-- Alert Banner -->
+<div class="bg-[rgba(248,81,73,0.08)] border border-[#F85149] rounded-[12px] p-4 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#F85149]" data-icon="notifications_active">notifications_active</span>
+<p class="text-[15px] font-semibold text-[#F85149]">3 price drop alerts!</p>
+</div>
+<button class="px-4 py-1.5 border border-[#F85149] text-[#F85149] hover:bg-[#F85149]/10 transition-colors text-sm font-medium rounded-lg">
+                    View Alerts
+                </button>
+</div>
+<!-- Bulk Actions Bar -->
+<div class="bg-[#1C2128] rounded-[8px] p-3 flex items-center justify-between">
+<div class="flex items-center gap-3 px-2">
+<span class="text-white text-[14px] font-medium">2 selected</span>
+</div>
+<button class="px-4 py-1.5 bg-error-container text-white hover:bg-error transition-colors text-sm font-medium rounded-lg flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="delete">delete</span>
+                    Remove Selected
+                </button>
+</div>
+<!-- Watchlist Table Container -->
+<div class="bg-[#161B22] rounded-[12px] overflow-hidden shadow-2xl border border-outline-variant/10">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container-low/50 text-on-surface-variant uppercase text-[10px] tracking-widest font-bold">
+<tr>
+<th class="py-4 px-6 w-12"><input class="rounded bg-surface-container-highest border-outline-variant text-primary focus:ring-primary" type="checkbox"/></th>
+<th class="py-4 px-4">Product</th>
+<th class="py-4 px-4">Saved Price</th>
+<th class="py-4 px-4">Current Price</th>
+<th class="py-4 px-4">Change</th>
+<th class="py-4 px-4">Alert At</th>
+<th class="py-4 px-4">Last Checked</th>
+<th class="py-4 px-4 text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="text-sm">
+<!-- Alert Row -->
+<tr class="bg-[#2a1b1b] hover:bg-[#342121] transition-colors border-l-[3px] border-[#F85149]">
+<td class="py-4 px-6"><input checked="" class="rounded bg-surface-container-highest border-outline-variant text-primary focus:ring-primary" type="checkbox"/></td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-surface-container rounded-md overflow-hidden flex-shrink-0">
+<img class="w-full h-full object-cover" data-alt="sleek black premium over-ear headphones on a minimalistic dark studio background with dramatic rim lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBbdxKxYmMu7asnPsWk1SMNC0P4nxEhucmmX_7Q6sVjrglX3Ka8PL93zVsgMnRezMEmheVEgBcBOVs_609mw37f0W8wxZGWkOcPuLNzuQhIk4udubdLp1QICL7GnDsVoWZxvLkiaf0SwNq-NA7JKuSr5rhYwLb5ToNZjUJF4ScXPJU6D71ZF464pdoOTYezrTZpdjdnXS9K_D7kbg_rMgXaQ5Kp_XFzJM7NjMcCTEn9QqbGcAIS2IqPYYBq2iLJyxggweYAtVQaug"/>
+</div>
+<div>
+<p class="font-semibold text-white">Sony WH-1000XM5</p>
+<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-[#FF9900]/20 text-[#FF9900] uppercase tracking-tighter">Amazon</span>
+</div>
+</div>
+</td>
+<td class="py-4 px-4 font-mono text-on-surface-variant">₹24,990</td>
+<td class="py-4 px-4 font-bold text-[#3FB950]">₹21,240</td>
+<td class="py-4 px-4">
+<div class="flex items-center text-[#3FB950] font-semibold">
+<span class="material-symbols-outlined text-sm mr-1" data-icon="arrow_downward">arrow_downward</span>
+                                        15%
+                                    </div>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-2 bg-[#0D1117] border border-[#30363D] rounded-md px-2 py-1 w-[70px]">
+<input class="bg-transparent border-none p-0 text-white text-[13px] w-full focus:ring-0" type="text" value="5%"/>
+<span class="material-symbols-outlined text-[14px] text-on-surface-variant cursor-pointer" data-icon="edit">edit</span>
+</div>
+</td>
+<td class="py-4 px-4 text-on-surface-variant">2 hours ago</td>
+<td class="py-4 px-4 text-right">
+<button class="p-2 text-error hover:bg-error-container/20 rounded-full transition-colors">
+<span class="material-symbols-outlined text-lg" data-icon="delete_outline">delete_outline</span>
+</button>
+</td>
+</tr>
+<!-- Standard Row 1 -->
+<tr class="bg-[#1C2128] hover:bg-[#21262d] transition-colors border-l-[3px] border-transparent">
+<td class="py-4 px-6"><input class="rounded bg-surface-container-highest border-outline-variant text-primary focus:ring-primary" type="checkbox"/></td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-surface-container rounded-md overflow-hidden flex-shrink-0">
+<img class="w-full h-full object-cover" data-alt="modern slim silver laptop open on dark desk with glowing keyboard backlighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAUWa58Ffq9aIYZlREYdr4iMByZaFgXbJ8trBrG0obhwzgSMCvmX5FmZhzLabcEgVHTUHBOD8dIGmcw-0YdERDSHXb3-2I02_lq2Aheq0rEM8R4JtFWzJqcwSkJGJ1JPY4UWOvYZMNVddxgWZmtZtSWBnCIQvxrsv3DkPt3jvoV6-3FRpexHQqexp2ie2d6zDsUM87_WFUXcgVXYHvKmhAkoSygu8ZEn-vIAjn3SgxwMWo3_OnBKm6nDpLqhmHLpppMw00jEgOKIg"/>
+</div>
+<div>
+<p class="font-semibold text-white">Dell XPS 13 Plus</p>
+<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-[#2874F0]/20 text-[#2874F0] uppercase tracking-tighter">Flipkart</span>
+</div>
+</div>
+</td>
+<td class="py-4 px-4 font-mono text-on-surface-variant">₹1,45,000</td>
+<td class="py-4 px-4 font-bold text-white">₹1,45,000</td>
+<td class="py-4 px-4 text-on-surface-variant">0%</td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-2 bg-[#0D1117] border border-[#30363D] rounded-md px-2 py-1 w-[70px]">
+<input class="bg-transparent border-none p-0 text-white text-[13px] w-full focus:ring-0" type="text" value="10%"/>
+<span class="material-symbols-outlined text-[14px] text-on-surface-variant cursor-pointer" data-icon="edit">edit</span>
+</div>
+</td>
+<td class="py-4 px-4 text-on-surface-variant">4 hours ago</td>
+<td class="py-4 px-4 text-right">
+<button class="p-2 text-error hover:bg-error-container/20 rounded-full transition-colors">
+<span class="material-symbols-outlined text-lg" data-icon="delete_outline">delete_outline</span>
+</button>
+</td>
+</tr>
+<!-- Standard Row 2 -->
+<tr class="bg-[#161B22] hover:bg-[#1c2128] transition-colors border-l-[3px] border-transparent">
+<td class="py-4 px-6"><input checked="" class="rounded bg-surface-container-highest border-outline-variant text-primary focus:ring-primary" type="checkbox"/></td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-surface-container rounded-md overflow-hidden flex-shrink-0">
+<img class="w-full h-full object-cover" data-alt="smart watch with elegant circular display and dark metal band on dark textured background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBSoSWfk3oP0k-co2F-9Zmq67f0Oa5grUWFdFjewrzt4D2ySHWKuMfDLTZKIQyBe5QzopO82TRNLWBKsVr9l2Pz0RnrqBQu6-mIMH8xxBkuoKVXNe8AWBO7Qtp2c0oLH_u_LjtI1P17WiDOBnkQEq7LzdMDlPVNfvW6evSsahyP7bL8jxdWxDC7jSv1yLUL0pwK3czNKv2k8FwlAzjThqW_-D7WHAv7FOxCpdcnZSqBL0YxqSGqw6qEtZdoK-xUPGHPLe5uLFZ0ww"/>
+</div>
+<div>
+<p class="font-semibold text-white">Samsung Galaxy Watch 6</p>
+<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-[#FF9900]/20 text-[#FF9900] uppercase tracking-tighter">Amazon</span>
+</div>
+</div>
+</td>
+<td class="py-4 px-4 font-mono text-on-surface-variant">₹29,999</td>
+<td class="py-4 px-4 font-bold text-white">₹30,499</td>
+<td class="py-4 px-4">
+<div class="flex items-center text-error font-semibold">
+<span class="material-symbols-outlined text-sm mr-1" data-icon="arrow_upward">arrow_upward</span>
+                                        1.6%
+                                    </div>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-2 bg-[#0D1117] border border-[#30363D] rounded-md px-2 py-1 w-[70px]">
+<input class="bg-transparent border-none p-0 text-white text-[13px] w-full focus:ring-0" type="text" value="15%"/>
+<span class="material-symbols-outlined text-[14px] text-on-surface-variant cursor-pointer" data-icon="edit">edit</span>
+</div>
+</td>
+<td class="py-4 px-4 text-on-surface-variant">12 mins ago</td>
+<td class="py-4 px-4 text-right">
+<button class="p-2 text-error hover:bg-error-container/20 rounded-full transition-colors">
+<span class="material-symbols-outlined text-lg" data-icon="delete_outline">delete_outline</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Footer Section within content -->
+<div class="pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-on-surface-variant border-t border-outline-variant/10">
+<p class="text-[10px] tracking-widest uppercase font-semibold">Showing 1-14 of 14 products</p>
+<div class="flex items-center gap-2">
+<button class="p-2 rounded-lg border border-outline-variant/30 hover:bg-surface-container-high disabled:opacity-30" disabled="">
+<span class="material-symbols-outlined" data-icon="chevron_left">chevron_left</span>
+</button>
+<div class="flex items-center gap-1">
+<button class="w-8 h-8 rounded-lg bg-primary-container text-on-primary-container text-xs font-bold">1</button>
+</div>
+<button class="p-2 rounded-lg border border-outline-variant/30 hover:bg-surface-container-high disabled:opacity-30" disabled="">
+<span class="material-symbols-outlined" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<footer class="bg-[#10141a] flex justify-between items-center px-8 py-4 w-full mt-auto border-t border-[#dfe2eb]/15">
+<div class="font-['Inter'] text-[0.6875rem] tracking-[0.05em] uppercase text-[#94a3b8]">© 2024 Truvak. All rights reserved.</div>
+<div class="flex gap-6">
+<a class="font-['Inter'] text-[0.6875rem] tracking-[0.05em] uppercase text-[#94a3b8] hover:text-white underline transition-all duration-150 opacity-80 hover:opacity-100" href="#">Privacy Policy</a>
+<a class="font-['Inter'] text-[0.6875rem] tracking-[0.05em] uppercase text-[#94a3b8] hover:text-white underline transition-all duration-150 opacity-80 hover:opacity-100" href="#">Terms of Service</a>
+</div>
+</footer>
+</main>
+<!-- Mobile Nav (Visible on Mobile Only) -->
+<nav class="md:hidden fixed bottom-0 left-0 right-0 glass-panel border-t border-outline-variant/10 flex justify-around items-center py-3 z-50">
+<a class="flex flex-col items-center gap-1 text-[#94a3b8]" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="text-[10px]">Home</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-[#58A6FF]" href="#">
+<span class="material-symbols-outlined" data-icon="visibility">visibility</span>
+<span class="text-[10px]">Watchlist</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-[#94a3b8]" href="#">
+<span class="material-symbols-outlined" data-icon="query_stats">query_stats</span>
+<span class="text-[10px]">Analysis</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-[#94a3b8]" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="text-[10px]">Profile</span>
+</a>
+</nav>
+</body></html>
