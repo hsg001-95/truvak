@@ -21,6 +21,8 @@ Usage
 import os
 from datetime import datetime
 
+from dotenv import load_dotenv
+
 from sqlalchemy import (
     Boolean,
     Column,
@@ -39,17 +41,27 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 # Engine / session factory
 # ---------------------------------------------------------------------------
 
+load_dotenv()
+
 # DB lives alongside the existing trust.db in data/
 _DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 os.makedirs(_DATA_DIR, exist_ok=True)
 
-DATABASE_URL = "sqlite:///" + os.path.abspath(os.path.join(_DATA_DIR, "truvak_customer.db"))
+_DEFAULT_SQLITE_URL = "sqlite:///" + os.path.abspath(os.path.join(_DATA_DIR, "truvak_customer.db"))
+DATABASE_URL = (os.getenv("DATABASE_URL") or _DEFAULT_SQLITE_URL).strip()
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False},  # required for SQLite + FastAPI
-    echo=False,
-)
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"check_same_thread": False},  # required for SQLite + FastAPI
+        echo=False,
+    )
+else:
+    engine = create_engine(
+        DATABASE_URL,
+        pool_pre_ping=True,
+        echo=False,
+    )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -289,6 +301,35 @@ class PriceComparisonCache(Base):
 
 
 # ---------------------------------------------------------------------------
+# 7. selector_health_reports
+# ---------------------------------------------------------------------------
+
+class SelectorHealthReport(Base):
+    """
+    Selector extraction health report from extension runtime.
+
+    checked_fields_json : JSON array of fields attempted for extraction
+    failed_fields_json  : JSON array of fields that failed extraction
+    url_pattern         : normalized path (e.g., /dp/ASIN)
+    """
+
+    __tablename__ = "selector_health_reports"
+
+    id                 = Column(Integer,    primary_key=True, autoincrement=True)
+    platform           = Column(String(32), nullable=False)
+    checked_fields_json = Column(Text,      nullable=False, default="[]")
+    failed_fields_json = Column(Text,       nullable=False, default="[]")
+    url_pattern        = Column(String(255), nullable=True)
+    reported_at        = Column(DateTime,   nullable=False, default=datetime.utcnow)
+
+    def __repr__(self) -> str:
+        return (
+            f"<SelectorHealthReport id={self.id} platform={self.platform} "
+            f"reported_at={self.reported_at}>"
+        )
+
+
+# ---------------------------------------------------------------------------
 # Explicit index definitions (created via checkfirst=True for idempotency)
 # ---------------------------------------------------------------------------
 
@@ -329,6 +370,12 @@ _INDEXES = [
           PriceComparisonCache.__table__.c.source_product_id),
     Index("ix_price_comparison_cache_expires",
           PriceComparisonCache.__table__.c.expires_at),
+
+        # selector_health_reports
+        Index("ix_selector_health_reports_platform",
+            SelectorHealthReport.__table__.c.platform),
+        Index("ix_selector_health_reports_reported_at",
+            SelectorHealthReport.__table__.c.reported_at),
 ]
 
 

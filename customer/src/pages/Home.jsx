@@ -101,6 +101,95 @@ function AlertsSection({ loading, watchlist, onOpen }) {
   );
 }
 
+function RecentOrdersSection({ loading, orders, error }) {
+  if (loading) {
+    return <SkeletonLoader rows={1} />;
+  }
+
+  if (error) {
+    return (
+      <section className="rounded-xl border border-[#30363D] bg-[#161B22] p-6">
+        <h3 className="text-base font-semibold text-[#E6EDF3]">Recent Orders</h3>
+        <p className="mt-2 text-sm text-[#F85149]">{error}</p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-xl border border-[#30363D] bg-[#161B22] p-6">
+      <h3 className="text-base font-semibold text-[#E6EDF3]">Recent Orders</h3>
+      {!orders.length ? (
+        <p className="mt-2 text-sm text-[#8B949E]">No recent orders found.</p>
+      ) : (
+        <ul className="mt-3 space-y-2">
+          {orders.map((order) => (
+            <li key={order.id} className="rounded-md border border-[#30363D] px-3 py-2 text-sm text-[#C9D1D9]">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-medium text-[#E6EDF3]">{order.platform || "unknown"}</span>
+                <span className="text-xs uppercase tracking-wide text-[#8B949E]">{order.order_status || "pending"}</span>
+              </div>
+              <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs text-[#8B949E]">
+                <span>{formatInr(order.order_value || 0)}</span>
+                <span>{order.order_date ? new Date(order.order_date).toLocaleDateString("en-IN") : "-"}</span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function RecentWatchlistSection({ loading, items, error }) {
+  if (loading) {
+    return <SkeletonLoader rows={1} />;
+  }
+
+  if (error) {
+    return (
+      <section className="rounded-xl border border-[#30363D] bg-[#161B22] p-6">
+        <h3 className="text-base font-semibold text-[#E6EDF3]">Active Watchlist</h3>
+        <p className="mt-2 text-sm text-[#F85149]">{error}</p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-xl border border-[#30363D] bg-[#161B22] p-6">
+      <h3 className="text-base font-semibold text-[#E6EDF3]">Active Watchlist</h3>
+      {!items.length ? (
+        <p className="mt-2 text-sm text-[#8B949E]">No active watchlist items found.</p>
+      ) : (
+        <ul className="mt-3 space-y-2">
+          {items.map((item) => (
+            <li key={item.id} className="rounded-md border border-[#30363D] px-3 py-2 text-sm text-[#C9D1D9]">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-medium text-[#E6EDF3]">{item.product_name || item.product_id || `Item #${item.id}`}</span>
+                <span className="text-xs uppercase tracking-wide text-[#8B949E]">{item.platform || "unknown"}</span>
+              </div>
+              <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs text-[#8B949E]">
+                <span>{formatInr(item.current_price || item.price_at_save || 0)}</span>
+                {item.product_url ? (
+                  <a
+                    href={item.product_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#58A6FF] hover:underline"
+                  >
+                    Open
+                  </a>
+                ) : (
+                  <span>-</span>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 export default function Home() {
   useAuthGuard();
 
@@ -136,21 +225,27 @@ export default function Home() {
         headers: authHeaders,
       });
 
-      if ([spendRes, profileRes, watchlistRes].some((res) => res.status === 401)) {
+      // API endpoint: GET /v1/customer/orders/recent
+      const recentOrdersRes = await fetch(`${API}/v1/customer/orders/recent?limit=5`, {
+        headers: authHeaders,
+      });
+
+      if ([spendRes, profileRes, watchlistRes, recentOrdersRes].some((res) => res.status === 401)) {
         clearAuth();
         navigate("/login", { replace: true });
         return;
       }
 
-      if (!spendRes.ok || !profileRes.ok || !watchlistRes.ok) {
+      if (!spendRes.ok || !profileRes.ok || !watchlistRes.ok || !recentOrdersRes.ok) {
         throw new Error("Unable to load dashboard data");
       }
 
       const spend = await spendRes.json();
       const profile = await profileRes.json();
       const watchlist = await watchlistRes.json();
+      const recentOrders = await recentOrdersRes.json();
 
-      setData({ spend, profile, watchlist });
+      setData({ spend, profile, watchlist, recentOrders: recentOrders.orders || [] });
     } catch (err) {
       setError(err.message);
       setData(null);
@@ -177,6 +272,8 @@ export default function Home() {
         <HomeHero loading={loading} profile={data?.profile || null} onRefresh={fetchHomeData} />
         <KpiSection loading={loading} spendData={data?.spend || null} />
         <AlertsSection loading={loading} watchlist={data?.watchlist || null} onOpen={handleOpenAlert} />
+        <RecentOrdersSection loading={loading} orders={data?.recentOrders || []} error={error} />
+        <RecentWatchlistSection loading={loading} items={(data?.watchlist || []).slice(0, 5)} error={error} />
       </div>
     </CustomerLayout>
   );

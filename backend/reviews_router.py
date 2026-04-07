@@ -14,6 +14,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from backend.db import get_connection
+from backend.db_adapter import adapt_query, is_postgres
 from backend.privacy import hash_buyer_id
 
 
@@ -119,6 +120,10 @@ class FeedbackResponse(BaseModel):
 
 
 def _ensure_review_tables() -> None:
+    if is_postgres():
+        # PostgreSQL schema should be managed via migrations / Supabase SQL.
+        return
+
     conn = get_connection()
     conn.executescript(
         """
@@ -425,13 +430,13 @@ async def analyze_reviews(request: Request, analysis_request: ReviewAnalysisRequ
     fake_count = sum(1 for r in results if r.suspicion_label == "LIKELY_FAKE")
 
     cursor.execute(
-        """
+        adapt_query("""
         INSERT INTO review_analyses
         (merchant_id, product_id, analysis_timestamp, total_reviews, fake_count,
          authenticity_score, fake_review_percentage, burst_detected,
          template_detected, ring_detected, overall_verdict)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
+        """),
         (
             merchant_id,
             product_id,
@@ -476,7 +481,7 @@ async def get_product_analysis(product_id: str):
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
-        """
+        adapt_query("""
         SELECT product_id, authenticity_score, fake_review_percentage,
                total_reviews, burst_detected, template_detected,
                ring_detected, overall_verdict
@@ -484,7 +489,7 @@ async def get_product_analysis(product_id: str):
         WHERE product_id = ?
         ORDER BY analysis_timestamp DESC
         LIMIT 1
-        """,
+        """),
         (product_id,),
     )
     result = cursor.fetchone()
@@ -497,15 +502,17 @@ async def get_product_analysis(product_id: str):
             detail="No analysis found for this product. POST to /v1/reviews/analyze first.",
         )
 
+    row = dict(result)
+
     return ProductIntegrityResult(
-        product_id=result[0],
-        authenticity_score=float(result[1]),
-        fake_review_percentage=float(result[2]),
-        total_reviews_analyzed=int(result[3]),
-        burst_detected=bool(result[4]),
-        template_detected=bool(result[5]),
-        ring_detected=bool(result[6]),
-        overall_verdict=result[7],
+        product_id=row["product_id"],
+        authenticity_score=float(row["authenticity_score"]),
+        fake_review_percentage=float(row["fake_review_percentage"]),
+        total_reviews_analyzed=int(row["total_reviews"]),
+        burst_detected=bool(row["burst_detected"]),
+        template_detected=bool(row["template_detected"]),
+        ring_detected=bool(row["ring_detected"]),
+        overall_verdict=row["overall_verdict"],
     )
 
 
@@ -519,11 +526,11 @@ async def submit_feedback(feedback_request: FeedbackRequest):
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
-        """
+        adapt_query("""
         INSERT INTO review_feedback
         (merchant_id, product_id, review_text_hash, merchant_verdict, submitted_at)
         VALUES (?, ?, ?, ?, ?)
-        """,
+        """),
         (
             feedback_request.merchant_id,
             feedback_request.product_id,
@@ -535,14 +542,18 @@ async def submit_feedback(feedback_request: FeedbackRequest):
     conn.commit()
 
     cursor.execute(
-        """
+        adapt_query("""
         SELECT COUNT(*)
         FROM review_feedback
         WHERE merchant_id = ? AND product_id = ?
-        """,
+        """),
         (feedback_request.merchant_id, feedback_request.product_id),
     )
-    total_feedback_count = int(cursor.fetchone()[0])
+    count_row = cursor.fetchone()
+    if isinstance(count_row, dict):
+        total_feedback_count = int(next(iter(count_row.values())))
+    else:
+        total_feedback_count = int(count_row[0])
 
     cursor.close()
     conn.close()

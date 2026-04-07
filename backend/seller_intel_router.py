@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from backend.customer_auth_router import get_current_customer
 from backend.customer_models import ProductPriceSummary, get_db
 from backend.db import get_connection
+from backend.db_adapter import adapt_query
 
 CATEGORY_RISK_LEVELS = {
     "electronics": "HIGH",
@@ -66,11 +67,13 @@ async def get_seller_trust(
     _customer_id_hash: str = Depends(get_current_customer),
 ):
     conn = get_connection()
+    cursor = conn.cursor()
     try:
-        trust_rows = conn.execute(
-            "SELECT order_id, score, is_cod FROM trust_scores WHERE merchant_id = ?",
+        cursor.execute(
+            adapt_query("SELECT order_id, score, is_cod FROM trust_scores WHERE merchant_id = ?"),
             (seller_id,),
-        ).fetchall()
+        )
+        trust_rows = cursor.fetchall()
 
         if not trust_rows:
             return SellerTrustResponse(
@@ -89,10 +92,11 @@ async def get_seller_trust(
         avg_trust_score = sum(float(row["score"]) for row in trust_rows) / len(trust_rows)
         data_confidence = _data_confidence_from_count(len(trust_rows))
 
-        outcome_rows = conn.execute(
-            "SELECT order_id, result FROM outcomes WHERE merchant_id = ?",
+        cursor.execute(
+            adapt_query("SELECT order_id, result FROM outcomes WHERE merchant_id = ?"),
             (seller_id,),
-        ).fetchall()
+        )
+        outcome_rows = cursor.fetchall()
 
         total_outcomes = len(outcome_rows)
         rto_rate = (
@@ -151,6 +155,7 @@ async def get_seller_trust(
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Error retrieving seller trust: {exc}")
     finally:
+        cursor.close()
         conn.close()
 
 

@@ -13,6 +13,7 @@ import bcrypt
 import jwt
 
 from backend.customer_schema import get_customer_db_connection
+from backend.db_adapter import adapt_query
 
 JWT_SECRET = os.getenv("JWT_SECRET", "truvak-dev-secret-change-in-production")
 JWT_ALGORITHM = "HS256"
@@ -117,7 +118,7 @@ async def register_customer(customer_request: CustomerRegisterRequest):
         customer_id_hash = hash_email_for_id(customer_request.email)
 
         cursor = db_connection.cursor()
-        cursor.execute("SELECT id FROM customer_accounts WHERE email_hash = ?", (email_hash,))
+        cursor.execute(adapt_query("SELECT id FROM customer_accounts WHERE email_hash = ?"), (email_hash,))
         existing_account = cursor.fetchone()
 
         if existing_account:
@@ -131,7 +132,7 @@ async def register_customer(customer_request: CustomerRegisterRequest):
             INSERT INTO customer_accounts (email_hash, customer_id_hash, password_hash, pin_code, created_at)
             VALUES (?, ?, ?, ?, ?)
         """
-        cursor.execute(insert_query, (email_hash, customer_id_hash, hashed_password, customer_request.pin_code, current_time))
+        cursor.execute(adapt_query(insert_query), (email_hash, customer_id_hash, hashed_password, customer_request.pin_code, current_time))
         db_connection.commit()
 
         token = create_jwt_token(customer_id_hash)
@@ -157,7 +158,7 @@ async def login_customer(customer_request: CustomerLoginRequest):
         email_hash = hash_email_for_lookup(customer_request.email)
 
         cursor = db_connection.cursor()
-        cursor.execute("SELECT * FROM customer_accounts WHERE email_hash = ?", (email_hash,))
+        cursor.execute(adapt_query("SELECT * FROM customer_accounts WHERE email_hash = ?"), (email_hash,))
         account = cursor.fetchone()
 
         if not account or not bcrypt.checkpw(customer_request.password.encode(), account['password_hash'].encode() if isinstance(account['password_hash'], str) else account['password_hash']):
@@ -170,7 +171,7 @@ async def login_customer(customer_request: CustomerLoginRequest):
             SET last_active = ?
             WHERE customer_id_hash = ?
         """
-        cursor.execute(update_query, (current_time, customer_id_hash))
+        cursor.execute(adapt_query(update_query), (current_time, customer_id_hash))
         db_connection.commit()
 
         token = create_jwt_token(customer_id_hash)
@@ -194,7 +195,7 @@ async def get_current_customer_details(customer_id_hash: str = Depends(get_curre
     db_connection = get_customer_db_connection()
     try:
         cursor = db_connection.cursor()
-        cursor.execute("SELECT * FROM customer_accounts WHERE customer_id_hash = ?", (customer_id_hash,))
+        cursor.execute(adapt_query("SELECT * FROM customer_accounts WHERE customer_id_hash = ?"), (customer_id_hash,))
         account = cursor.fetchone()
 
         if not account:

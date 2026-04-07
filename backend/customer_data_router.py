@@ -81,6 +81,18 @@ class BuyerProfileResponse(BaseModel):
     improvement_tips: List[str]
 
 
+class RecentOrderItem(BaseModel):
+    id: int
+    platform: str
+    order_status: str
+    order_value: float
+    order_date: str
+
+
+class RecentOrdersResponse(BaseModel):
+    orders: List[RecentOrderItem]
+
+
 def hash_order_id(order_id_raw: str) -> str:
     return hashlib.sha256(order_id_raw.encode()).hexdigest()
 
@@ -357,6 +369,34 @@ async def get_buyer_profile(
         cod_fulfillment_rate=round(cod_fulfillment_rate_ratio * 100, 2),
         total_orders_analyzed=order_count,
         improvement_tips=improvement_tips,
+    )
+
+
+@router.get("/v1/customer/orders/recent", response_model=RecentOrdersResponse)
+async def get_recent_orders(
+    limit: int = Query(5, ge=1, le=25),
+    customer_id_hash: str = Depends(get_current_customer),
+    db: Session = Depends(get_db),
+):
+    orders = (
+        db.query(CustomerOrder)
+        .filter(CustomerOrder.customer_id_hash == customer_id_hash)
+        .order_by(CustomerOrder.order_date.desc())
+        .limit(limit)
+        .all()
+    )
+
+    return RecentOrdersResponse(
+        orders=[
+            RecentOrderItem(
+                id=int(order.id),
+                platform=(order.platform or "unknown"),
+                order_status=(order.order_status or "pending"),
+                order_value=float(order.order_value),
+                order_date=order.order_date.isoformat(),
+            )
+            for order in orders
+        ]
     )
 
 

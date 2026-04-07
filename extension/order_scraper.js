@@ -1,5 +1,21 @@
 const STORAGE_KEY_PREFIX = 'truvak_order_';
 const ORDER_SYNC_BATCH_SIZE = 50;
+const COMPARISON_CACHE_KEY = 'truvak_price_comparison_cache_v1';
+
+const DEFAULT_PLATFORM_DELAYS_MS = {
+  flipkart: 0,
+  croma: 800,
+  tatacliq: 1600,
+  meesho: 2400,
+  myntra: 3200,
+};
+
+const BROWSER_HEADERS = {
+  Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+  'Accept-Language': 'en-IN,en;q=0.9,hi;q=0.8,en-GB;q=0.7',
+  'Cache-Control': 'no-cache',
+  Pragma: 'no-cache',
+};
 
 function getApiBaseUrl() {
   return window.TRUVAK_API || window.TruvakConfig?.apiUrl || 'http://127.0.0.1:8000';
@@ -7,6 +23,43 @@ function getApiBaseUrl() {
 
 function cleanText(value) {
   return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+function getComparisonTtlMs() {
+  return window.TruvakSelectors?.CACHE_TTL_MS?.comparison || (2 * 60 * 60 * 1000);
+}
+
+function getPlatformDelay(platform) {
+  const configured = window.TruvakSelectors?.PLATFORM_DELAYS_MS || DEFAULT_PLATFORM_DELAYS_MS;
+  return Number(configured?.[platform] ?? 0) || 0;
+}
+
+function getSearchUrl(platform, query) {
+  const factory = window.TruvakSelectors?.SEARCH_URLS?.[platform];
+  if (typeof factory === 'function') {
+    return factory(query);
+  }
+  return `https://${platform}.com/search/?q=${encodeURIComponent(query)}`;
+}
+
+function getComparisonCache() {
+  try {
+    return JSON.parse(localStorage.getItem(COMPARISON_CACHE_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function setComparisonCache(cache) {
+  try {
+    localStorage.setItem(COMPARISON_CACHE_KEY, JSON.stringify(cache));
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
+function getCacheKey(platform, query) {
+  return `${String(platform || '').toLowerCase()}::${cleanText(query).toLowerCase()}`;
 }
 
 function parseAmount(value) {
@@ -277,6 +330,15 @@ function tryExtractPriceFromJsonLd(jsonText) {
 
       const offerPrice = num(item?.offers?.price, NaN);
       if (Number.isFinite(offerPrice) && offerPrice > 0) return { price: offerPrice, found: true };
+
+      if (Array.isArray(item?.offers)) {
+        for (const offer of item.offers) {
+          const offerArrayPrice = num(offer?.price, NaN);
+          if (Number.isFinite(offerArrayPrice) && offerArrayPrice > 0) {
+            return { price: offerArrayPrice, found: true };
+          }
+        }
+      }
     }
   } catch {
     // Ignore malformed JSON-LD.
@@ -285,95 +347,97 @@ function tryExtractPriceFromJsonLd(jsonText) {
   return { price: null, found: false };
 }
 
-async function extractFlipkartPrice(html) {
-  try {
-    const blocks = extractJsonLdBlocks(html);
-    for (const block of blocks) {
-      const result = tryExtractPriceFromJsonLd(block);
-      if (result.found) return result;
-    }
-
-    const classPriceMatch = html.match(/class=["'][^"']*(_30jeq3|_16Jk6d)[^"']*["'][^>]*>\s*₹?\s*([0-9,]+(?:\.[0-9]+)?)/i);
-    if (classPriceMatch?.[2]) {
-      const price = parseAmount(classPriceMatch[2]);
+function extractPriceFromDataAttributes(html, attrCandidates) {
+  const attrs = Array.isArray(attrCandidates) ? attrCandidates : [];
+  for (const attr of attrs) {
+    const pattern = new RegExp(`${attr}=["']([^"']+)["']`, 'ig');
+    let match = pattern.exec(html);
+    while (match) {
+      const price = parseAmount(match[1]);
       if (price > 0) return { price, found: true };
+      match = pattern.exec(html);
     }
-
-    return { price: null, found: false };
-  } catch (error) {
-    console.error('Error extracting Flipkart price:', error);
-    return { price: null, found: false };
   }
+
+  return { price: null, found: false };
 }
 
-async function extractCromaPrice(html) {
-  try {
-    const blocks = extractJsonLdBlocks(html);
-    for (const block of blocks) {
-      const result = tryExtractPriceFromJsonLd(block);
-      if (result.found) return result;
+function extractPriceFromCssSelectors(html, selectors) {
+  const cssSelectors = Array.isArray(selectors) ? selectors : [];
+  for (const selector of cssSelectors) {
+    const classNames = selector
+      .split('.')
+      .filter(Boolean)
+      .map((name) => name.replace(/[^a-zA-Z0-9_-]/g, ''));
+
+    for (const className of classNames) {
+      const classPriceMatch = html.match(
+        new RegExp(`class=["'][^"']*${className}[^"']*["'][^>]*>\\s*₹?\\s*([0-9,]+(?:\\.[0-9]+)?)`, 'i')
+      );
+      if (classPriceMatch?.[1]) {
+        const price = parseAmount(classPriceMatch[1]);
+        if (price > 0) return { price, found: true };
+      }
     }
-    return { price: null, found: false };
-  } catch (error) {
-    console.error('Error extracting Croma price:', error);
-    return { price: null, found: false };
   }
+
+  return { price: null, found: false };
 }
 
-async function extractTatacliqPrice(html) {
-  try {
-    const blocks = extractJsonLdBlocks(html);
-    for (const block of blocks) {
-      const result = tryExtractPriceFromJsonLd(block);
-      if (result.found) return result;
-    }
-    return { price: null, found: false };
-  } catch (error) {
-    console.error('Error extracting Tatacliq price:', error);
-    return { price: null, found: false };
-  }
+function getValueByPath(obj, path) {
+  return String(path || '')
+    .split('.')
+    .reduce((acc, key) => (acc && typeof acc === 'object' ? acc[key] : undefined), obj);
 }
 
-async function extractMeeshoPrice(html) {
+function extractPriceFromNextData(html, paths) {
   try {
     const scriptTag = html.match(/<script[^>]*id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i);
-    if (scriptTag?.[1]) {
-      const parsed = JSON.parse(scriptTag[1]);
-      const price = num(
-        parsed?.props?.pageProps?.data?.price?.discounted ||
-        parsed?.props?.pageProps?.data?.price?.original,
-        NaN
-      );
+    if (!scriptTag?.[1]) return { price: null, found: false };
 
+    const parsed = JSON.parse(scriptTag[1]);
+    for (const path of Array.isArray(paths) ? paths : []) {
+      const value = getValueByPath(parsed, path);
+      const price = num(value, NaN);
       if (Number.isFinite(price) && price > 0) {
         return { price, found: true };
       }
     }
+
     return { price: null, found: false };
   } catch (error) {
-    console.error('Error extracting Meesho price:', error);
+    console.error('Error extracting __NEXT_DATA__ price:', error);
     return { price: null, found: false };
   }
 }
 
-async function extractMyntraPrice(html) {
-  try {
-    const scriptTag = html.match(/<script[^>]*id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i);
-    if (scriptTag?.[1]) {
-      const parsed = JSON.parse(scriptTag[1]);
-      const price = num(
-        parsed?.props?.product?.price?.discounted ||
-        parsed?.props?.product?.price?.original,
-        NaN
-      );
+async function extractPlatformPrice(platform, html) {
+  const platformKey = String(platform || '').toLowerCase();
+  const platformConfig = window.TruvakSelectors?.SELECTORS?.comparison?.[platformKey] || {};
 
-      if (Number.isFinite(price) && price > 0) {
-        return { price, found: true };
+  try {
+    if (platformConfig.jsonLd) {
+      const blocks = extractJsonLdBlocks(html);
+      for (const block of blocks) {
+        const result = tryExtractPriceFromJsonLd(block);
+        if (result.found) return result;
       }
     }
+
+    const dataAttrResult = extractPriceFromDataAttributes(html, platformConfig.dataAttrs);
+    if (dataAttrResult.found) return dataAttrResult;
+
+    const cssResult = extractPriceFromCssSelectors(html, platformConfig.cssPrice);
+    if (cssResult.found) return cssResult;
+
+    if (Array.isArray(platformConfig.nextDataPaths) && platformConfig.nextDataPaths.length) {
+      const nextDataResult = extractPriceFromNextData(html, platformConfig.nextDataPaths);
+      if (nextDataResult.found) return nextDataResult;
+    }
+
     return { price: null, found: false };
   } catch (error) {
-    console.error('Error extracting Myntra price:', error);
+    console.error(`Error extracting ${platformKey} price:`, error);
     return { price: null, found: false };
   }
 }
@@ -423,27 +487,62 @@ async function fetchCompetitorPrices(productData) {
     { platform: 'myntra', query: buildSearchQuery(productData, primaryPriority) },
   ].filter((q) => q.query);
 
+  const cacheTtl = getComparisonTtlMs();
+  const cached = getComparisonCache();
+
   const results = await Promise.allSettled(
     queries.map(async (query) => {
-      const url = `https://${query.platform}.com/search/?q=${encodeURIComponent(query.query)}`;
+      const url = getSearchUrl(query.platform, query.query);
+      const cacheKey = getCacheKey(query.platform, query.query);
+      const cacheRecord = cached[cacheKey];
+      const now = Date.now();
+
+      if (cacheRecord && (now - Number(cacheRecord.at || 0)) < cacheTtl) {
+        return {
+          ...cacheRecord.result,
+          fromCache: true,
+        };
+      }
+
+      const platformDelay = getPlatformDelay(query.platform);
+      if (platformDelay > 0) {
+        await new Promise((resolve) => setTimeout(resolve, platformDelay));
+      }
+
       try {
         const response = await fetchWithTimeout(
           url,
           {
             headers: {
-              Accept: 'text/html,application/xhtml+xml,application/xml',
-              'Accept-Language': 'en-IN,en;q=0.9,hi;q=0.8',
+              ...BROWSER_HEADERS,
             },
+            credentials: 'include',
           },
           TIMEOUT_MS
         );
 
         if (!response || response.status === 'timeout') {
-          return { platform: query.platform, url, confidence: null, found: false, price: null };
+          return {
+            platform: query.platform,
+            url,
+            confidence: null,
+            found: false,
+            price: null,
+            status: 'UNAVAILABLE',
+            reason: 'timeout',
+          };
         }
 
         if (!response.ok) {
-          return { platform: query.platform, url, confidence: null, found: false, price: null };
+          return {
+            platform: query.platform,
+            url,
+            confidence: null,
+            found: false,
+            price: null,
+            status: 'UNAVAILABLE',
+            reason: `http_${response.status}`,
+          };
         }
 
         const html = await response.text();
@@ -453,25 +552,38 @@ async function fetchCompetitorPrices(productData) {
             ? 'MEDIUM'
             : 'LOW';
 
-        let extractFunction = extractFlipkartPrice;
-        if (query.platform === 'croma') extractFunction = extractCromaPrice;
-        if (query.platform === 'tatacliq') extractFunction = extractTatacliqPrice;
-        if (query.platform === 'meesho') extractFunction = extractMeeshoPrice;
-        if (query.platform === 'myntra') extractFunction = extractMyntraPrice;
-
-        const priceResult = await extractFunction(html);
-        return {
+        const priceResult = await extractPlatformPrice(query.platform, html);
+        const result = {
           platform: query.platform,
           url,
           confidence,
           found: Boolean(priceResult.found),
           price: priceResult.price,
+          status: priceResult.found ? 'OK' : 'UNAVAILABLE',
+          reason: priceResult.found ? null : 'not_found',
         };
+
+        cached[cacheKey] = {
+          at: now,
+          result,
+        };
+
+        return result;
       } catch {
-        return { platform: query.platform, url, confidence: null, found: false, price: null };
+        return {
+          platform: query.platform,
+          url,
+          confidence: null,
+          found: false,
+          price: null,
+          status: 'UNAVAILABLE',
+          reason: 'network',
+        };
       }
     })
   );
+
+  setComparisonCache(cached);
 
   return results.map((result, index) => {
     if (result.status === 'fulfilled') return result.value;
@@ -481,6 +593,8 @@ async function fetchCompetitorPrices(productData) {
       confidence: null,
       found: false,
       price: null,
+      status: 'UNAVAILABLE',
+      reason: 'promise_rejected',
     };
   });
 }

@@ -1,17 +1,15 @@
-import sqlite3
-import os
-
-# Database path to trust.db in the data folder
-DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'trust.db'))
+from backend.db_adapter import get_connection, is_postgres
 
 def get_customer_db_connection():
-    """Returns a sqlite3 connection to trust.db with row_factory set to sqlite3.Row."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    """Returns an adapter-managed DB connection for customer auth/storage."""
+    return get_connection()
 
 def init_customer_db(conn):
     """Executes all CREATE TABLE and CREATE INDEX statements for the customer side."""
+    if is_postgres():
+        # PostgreSQL schema is managed via migrations / Supabase SQL editor.
+        return
+
     cursor = conn.cursor()
 
     # TABLE 1: customer_accounts

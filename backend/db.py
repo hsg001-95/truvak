@@ -1,14 +1,21 @@
-import sqlite3
 import os
+
+from backend.db_adapter import get_connection as adapter_get_connection
+from backend.db_adapter import is_postgres
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'trust.db')
 
 def get_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    return adapter_get_connection()
 
 def init_db():
+    if is_postgres():
+        # PostgreSQL schema is managed via migrations / Supabase SQL editor.
+        print("PostgreSQL detected; skipping SQLite init_db schema bootstrap.")
+        return
+
+    import sqlite3
+
     conn = get_connection()
     cursor = conn.cursor()
 

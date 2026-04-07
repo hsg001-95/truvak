@@ -4,6 +4,7 @@ data/olist/
 venv/
 __pycache__/
 .env
+customer/.env
 /not_in_use/
 
 # Generated review datasets and model artifacts

@@ -10,6 +10,83 @@ function parsePrice(value) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
+let captchaResolutionObserver = null;
+
+function getApiBaseUrl() {
+  return window.TRUVAK_API || window.TruvakConfig?.apiUrl || 'http://127.0.0.1:8000';
+}
+
+function isAmazonProductPage(url = window.location.href) {
+  return /amazon\.in\/(?:[^/]+\/)?dp\/[A-Z0-9]{10}/i.test(String(url || ''));
+}
+
+function normalizeUrlPattern(url = window.location.pathname) {
+  return String(url || '').replace(/\/dp\/[A-Z0-9]{10}/ig, '/dp/ASIN');
+}
+
+function reportExtractionHealth(results) {
+  const fields = Object.entries(results || {});
+  if (!fields.length) return;
+
+  const checkedFields = fields.map(([key]) => key);
+  const failedFields = fields
+    .filter(([, value]) => value == null || value === '' || (Array.isArray(value) && value.length === 0))
+    .map(([key]) => key);
+
+  if (!failedFields.length) return;
+
+  fetch(`${getApiBaseUrl()}/v1/health/selector-report`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      platform: 'amazon',
+      checked_fields: checkedFields,
+      failed_fields: failedFields,
+      url_pattern: normalizeUrlPattern(window.location.pathname),
+    }),
+  }).catch(() => {
+    // Fire and forget by design.
+  });
+}
+
+function watchForCaptchaResolution() {
+  if (captchaResolutionObserver) return;
+
+  captchaResolutionObserver = new MutationObserver(async () => {
+    if (!document.querySelector('#productTitle')) return;
+
+    captchaResolutionObserver.disconnect();
+    captchaResolutionObserver = null;
+
+    try {
+      const data = await extractAmazonProduct();
+      if (!data || data.blocked) return;
+
+      if (window.TruvakSidebar?.renderSection) {
+        const title = cleanText(data.title || 'Product');
+        const price = Number.isFinite(Number(data.currentPrice))
+          ? `INR ${Number(data.currentPrice).toLocaleString('en-IN')}`
+          : '--';
+        window.TruvakSidebar.renderSection(
+          'product-header',
+          `<div><strong>${title}</strong><div style="margin-top:4px;color:#8B949E">${price}</div></div>`
+        );
+      }
+    } catch (error) {
+      console.error('Failed to auto-resume extraction after captcha:', error);
+    }
+  });
+
+  captchaResolutionObserver.observe(document.body, {
+    childList: true,
+    subtree: true,
+  });
+}
+
+function getSelectorSet(platform) {
+  return window.TruvakSelectors?.SELECTORS?.[platform] || {};
+}
+
 function firstText(selectors) {
   for (const selector of selectors) {
     const node = document.querySelector(selector);
@@ -163,27 +240,40 @@ async function extractAmazonReviews() {
 
 async function extractAmazonProduct() {
   try {
+    const amazonSelectors = getSelectorSet('amazon');
+    const captchaSelectors = Array.isArray(amazonSelectors.captcha) ? amazonSelectors.captcha : [];
+    const isCaptcha = captchaSelectors.some((selector) => document.querySelector(selector));
+    const robotTitleText = String(amazonSelectors.robotTitleText || 'Robot Check');
+
+    if (isCaptcha || document.title.includes(robotTitleText)) {
+      watchForCaptchaResolution();
+      return { blocked: true, reason: 'captcha', platform: 'amazon' };
+    }
+
+    const asinInputSelector = Array.isArray(amazonSelectors.asin) ? amazonSelectors.asin[1] : '#ASIN';
     const asinFromUrl = window.location.href.match(/\/dp\/([A-Z0-9]{10})/i)?.[1] || '';
-    const asinFromPage = cleanText(document.querySelector('#ASIN')?.value || '');
+    const asinFromPage = cleanText(document.querySelector(asinInputSelector)?.value || '');
     const asin = (asinFromUrl || asinFromPage || '').toUpperCase();
     if (!asin) return null;
 
-    const title = firstText(['#productTitle', '#title']);
+    const title = firstText(amazonSelectors.title || ['#productTitle', '#title']);
     if (!title) return null;
 
-    const brandRaw = firstText(['#bylineInfo', '#brand']);
+    const brandRaw = firstText(amazonSelectors.brand || ['#bylineInfo', '#brand']);
     const brand = brandRaw
       .replace(/^Visit the\s*/i, '')
       .replace(/\s*Store$/i, '')
       .trim();
     if (!brand) return null;
 
-    const priceText = firstText([
-      '.a-price .a-offscreen',
-      '#priceblock_ourprice',
-      '#corePriceDisplay_desktop_feature_div .a-offscreen',
-      '#corePrice_feature_div .a-offscreen',
-    ]);
+    const priceText = firstText(
+      amazonSelectors.price || [
+        '.a-price .a-offscreen',
+        '#priceblock_ourprice',
+        '#corePriceDisplay_desktop_feature_div .a-offscreen',
+        '#corePrice_feature_div .a-offscreen',
+      ]
+    );
     const currentPrice = parsePrice(priceText);
     if (!currentPrice) return null;
 
@@ -210,7 +300,7 @@ async function extractAmazonProduct() {
 
     const reviews = await extractAmazonReviews();
 
-    const imageUrl = firstAttr([
+    const imageUrl = firstAttr(amazonSelectors.image || [
       '#landingImage',
       '#imgBlkFront',
       '#main-image-container img',
@@ -219,7 +309,7 @@ async function extractAmazonProduct() {
 
     const productUrl = window.location.href;
 
-    return {
+    const result = {
       asin,
       title,
       brand,
@@ -233,6 +323,19 @@ async function extractAmazonProduct() {
       imageUrl,
       productUrl,
     };
+
+    reportExtractionHealth({
+      asin,
+      title,
+      brand,
+      currentPrice,
+      category,
+      sellerName,
+      sellerId,
+      imageUrl,
+    });
+
+    return result;
   } catch (error) {
     console.error('Failed to extract Amazon product data:', error);
     return null;
@@ -284,19 +387,21 @@ async function extractFlipkartReviews() {
 
 async function extractFlipkartProduct() {
   try {
+    const flipkartSelectors = getSelectorSet('flipkart');
     const productIdFromPath = window.location.href.match(/\/p\/(itm[a-zA-Z0-9]+)/)?.[1] || '';
     const productIdFromQuery = new URLSearchParams(window.location.search).get('pid') || '';
     const productId = cleanText(productIdFromPath || productIdFromQuery);
     if (!productId) return null;
 
-    const title = firstText(['.B_NuCI', 'h1.yhB1nd', 'h1._6EBuvT']);
+    const title = firstText(flipkartSelectors.title || ['.B_NuCI', 'h1.yhB1nd', 'h1._6EBuvT']);
     if (!title) return null;
 
-    const priceText = firstText(['._30jeq3._16Jk6d', '._30jeq3', '._25b18']);
+    const priceText = firstText(flipkartSelectors.price || ['._30jeq3._16Jk6d', '._30jeq3', '._25b18']);
     const currentPrice = parsePrice(priceText);
     if (!currentPrice) return null;
 
-    const breadcrumbs = Array.from(document.querySelectorAll('#breadCrumbs a, .r2CdBx a'))
+    const breadcrumbSelector = (flipkartSelectors.breadcrumbs || ['#breadCrumbs a', '.r2CdBx a']).join(', ');
+    const breadcrumbs = Array.from(document.querySelectorAll(breadcrumbSelector))
       .map((link) => cleanText(link.textContent || link.innerText))
       .filter(Boolean);
 
@@ -308,7 +413,7 @@ async function extractFlipkartProduct() {
 
     const reviews = await extractFlipkartReviews();
 
-    const imageUrl = firstAttr([
+    const imageUrl = firstAttr(flipkartSelectors.image || [
       'img._396CS4._2amPTT',
       'img._53J4C-',
       'img.DByuf4',
@@ -350,4 +455,13 @@ async function extractPageData(platform) {
 
 window.TruvakExtractor = {
   extractPageData,
+  reportExtractionHealth,
+  watchForCaptchaResolution,
 };
+
+if (isAmazonProductPage()) {
+  // Run passive health check once on product pages even if no section requests extractor.
+  extractAmazonProduct().catch(() => {
+    // Keep this silent to avoid noisy console for users.
+  });
+}

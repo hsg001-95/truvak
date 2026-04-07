@@ -13,8 +13,10 @@ import pickle
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
+import time
 
 from backend.db import init_db, get_connection
+from backend.db_adapter import adapt_query, health_probe, is_postgres
 from backend.privacy import hash_buyer_id
 from backend.rule_engine import RuleEngine, Rule
 from backend.reviews_router import router as reviews_router
@@ -23,6 +25,7 @@ from backend.customer_data_router import router as customer_data_router
 from backend.price_router import router as price_router
 from backend.seller_intel_router import router as seller_intel_router
 from backend.watchlist_router import router as watchlist_router
+from backend.selector_health_router import router as selector_health_router
 from backend.customer_models import (
     init_customer_db,
     CustomerAccount,
@@ -97,6 +100,7 @@ app.include_router(customer_data_router)
 app.include_router(price_router)
 app.include_router(seller_intel_router)
 app.include_router(watchlist_router)
+app.include_router(selector_health_router)
 
 
 def _error_payload(status_code: int, code: str, message: str, details=None):
@@ -520,11 +524,15 @@ def startup():
 
 @app.get("/health")
 def health():
+    probe = health_probe()
     return {
-        "status":  "ok",
-        "model":   "rto_model_v1",
+        "status": "ok" if probe.get("connected") else "degraded",
+        "model": "rto_model_v1",
         "features": len(FEATURES),
-        "version": "0.1.0"
+        "db_status": "connected" if probe.get("connected") else f"error: {probe.get('error', 'unknown')}",
+        "db_type": "postgresql" if is_postgres() else "sqlite",
+        "db_latency_ms": probe.get("latency_ms"),
+        "version": "2.0",
     }
 
 @app.post("/v1/score", response_model=ScoreResponse)
@@ -534,10 +542,13 @@ def score_order(req: ScoreRequest):
 
     # 2. Look up buyer history from DB
     conn = get_connection()
-    prev_outcomes = conn.execute(
-        "SELECT result FROM outcomes WHERE hashed_buyer_id=? AND merchant_id=?",
+    cursor = conn.cursor()
+    cursor.execute(
+        adapt_query("SELECT result FROM outcomes WHERE hashed_buyer_id=? AND merchant_id=?"),
         (hashed, req.merchant_id)
-    ).fetchall()
+    )
+    prev_outcomes = cursor.fetchall()
+    cursor.close()
     conn.close()
 
     prev_rto  = sum(1 for r in prev_outcomes if r["result"] == "rto")
@@ -571,24 +582,46 @@ def score_order(req: ScoreRequest):
 
     # 8. Store score in DB
     conn = get_connection()
-    conn.execute("""
+    cursor = conn.cursor()
+    cursor.execute(adapt_query("""
         INSERT INTO trust_scores
         (order_id, merchant_id, hashed_buyer_id, score, risk_level,
          factors, recommended_action, is_cod, order_value, pin_code)
         VALUES (?,?,?,?,?,?,?,?,?,?)
-    """, (
+    """), (
         req.order_id, req.merchant_id, hashed, score, risk_level,
         str(factors), rule_result["recommended_action"],
         req.is_cod, req.order_value, req.pin_code
     ))
-    conn.execute("""
-        INSERT OR IGNORE INTO orders
-        (order_id, merchant_id, hashed_buyer_id,
-         order_value, is_cod, pin_code)
-        VALUES (?,?,?,?,?,?)
-    """, (req.order_id, req.merchant_id, hashed,
-          req.order_value, req.is_cod, req.pin_code))
+
+    if is_postgres():
+        cursor.execute(
+            adapt_query(
+                """
+                INSERT INTO orders
+                (order_id, merchant_id, hashed_buyer_id,
+                 order_value, is_cod, pin_code)
+                VALUES (?,?,?,?,?,?)
+                ON CONFLICT (order_id) DO NOTHING
+                """
+            ),
+            (req.order_id, req.merchant_id, hashed, req.order_value, req.is_cod, req.pin_code),
+        )
+    else:
+        cursor.execute(
+            adapt_query(
+                """
+                INSERT OR IGNORE INTO orders
+                (order_id, merchant_id, hashed_buyer_id,
+                 order_value, is_cod, pin_code)
+                VALUES (?,?,?,?,?,?)
+                """
+            ),
+            (req.order_id, req.merchant_id, hashed, req.order_value, req.is_cod, req.pin_code),
+        )
+
     conn.commit()
+    cursor.close()
     conn.close()
 
     return ScoreResponse(
@@ -609,26 +642,31 @@ def log_outcome(req: OutcomeRequest):
 
     hashed = hash_buyer_id(req.raw_buyer_id, req.merchant_id)
     conn   = get_connection()
-    conn.execute("""
+    cursor = conn.cursor()
+    cursor.execute(adapt_query("""
         INSERT INTO outcomes
         (order_id, merchant_id, hashed_buyer_id, result)
         VALUES (?,?,?,?)
-    """, (req.order_id, req.merchant_id, hashed, req.result))
+    """), (req.order_id, req.merchant_id, hashed, req.result))
     conn.commit()
+    cursor.close()
     conn.close()
     return {"status": "logged", "order_id": req.order_id, "result": req.result}
 
 @app.get("/v1/scores/{merchant_id}")
 def get_scores(merchant_id: str, limit: int = 50):
     conn  = get_connection()
-    rows  = conn.execute("""
+    cursor = conn.cursor()
+    cursor.execute(adapt_query("""
         SELECT order_id, score, risk_level, recommended_action,
                is_cod, order_value, pin_code, created_at
         FROM   trust_scores
         WHERE  merchant_id = ?
         ORDER  BY created_at DESC
         LIMIT  ?
-    """, (merchant_id, limit)).fetchall()
+    """), (merchant_id, limit))
+    rows = cursor.fetchall()
+    cursor.close()
     conn.close()
     return {"merchant_id": merchant_id, "orders": [dict(r) for r in rows]}
 
@@ -674,16 +712,19 @@ def get_orders(authorization: Optional[str] = Header(default=None)):
 
     merchant_id = token
     conn = get_connection()
-    rows = conn.execute(
-        """
+    cursor = conn.cursor()
+    cursor.execute(
+        adapt_query("""
         SELECT order_id, score, risk_level
         FROM trust_scores
         WHERE merchant_id = ?
         ORDER BY created_at DESC
         LIMIT 100
-        """,
+        """),
         (merchant_id,),
-    ).fetchall()
+    )
+    rows = cursor.fetchall()
+    cursor.close()
     conn.close()
 
     status_map = {
@@ -747,33 +788,40 @@ def get_shopify_orders():
 @app.get("/v1/outcomes/{merchant_id}")
 def get_outcomes(merchant_id: str):
     conn = get_connection()
-    rows = conn.execute(
-        "SELECT * FROM outcomes WHERE merchant_id=? ORDER BY logged_at DESC LIMIT 200",
+    cursor = conn.cursor()
+    cursor.execute(
+        adapt_query("SELECT * FROM outcomes WHERE merchant_id=? ORDER BY logged_at DESC LIMIT 200"),
         (merchant_id,)
-    ).fetchall()
+    )
+    rows = cursor.fetchall()
+    cursor.close()
     conn.close()
     return {"outcomes": [dict(r) for r in rows]}
 @app.get("/v1/buyer/history/{hashed_buyer_id}/{merchant_id}")
 def get_buyer_history(hashed_buyer_id: str, merchant_id: str):
     conn = get_connection()
+    cursor = conn.cursor()
 
     # All orders for this buyer under this merchant
-    orders = conn.execute("""
+    cursor.execute(adapt_query("""
         SELECT order_id, score, risk_level, recommended_action,
                order_value, is_cod, created_at
         FROM trust_scores
         WHERE hashed_buyer_id=? AND merchant_id=?
         ORDER BY created_at DESC
-    """, (hashed_buyer_id, merchant_id)).fetchall()
+    """), (hashed_buyer_id, merchant_id))
+    orders = cursor.fetchall()
 
     # Outcomes logged for this buyer
-    outcomes = conn.execute("""
+    cursor.execute(adapt_query("""
         SELECT result, logged_at
         FROM outcomes
         WHERE hashed_buyer_id=? AND merchant_id=?
         ORDER BY logged_at DESC
-    """, (hashed_buyer_id, merchant_id)).fetchall()
+    """), (hashed_buyer_id, merchant_id))
+    outcomes = cursor.fetchall()
 
+    cursor.close()
     conn.close()
 
     total_orders  = len(orders)

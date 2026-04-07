@@ -21,7 +21,15 @@
     "https://www.amazon.in/*",
     "https://amazon.in/*",
     "https://www.flipkart.com/*",
-    "https://flipkart.com/*"
+    "https://flipkart.com/*",
+    "https://www.croma.com/*",
+    "https://croma.com/*",
+    "https://www.tatacliq.com/*",
+    "https://tatacliq.com/*",
+    "https://www.meesho.com/*",
+    "https://meesho.com/*",
+    "https://www.myntra.com/*",
+    "https://myntra.com/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -49,6 +57,7 @@
         "http://127.0.0.1/*"
       ],
       "js": [
+        "selectors.js",
         "customer_sidebar.js",
         "customer_extractor.js",
         "section_price_intel.js",

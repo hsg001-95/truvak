@@ -1,5 +1,12 @@
 const PRICE_HISTORY_CACHE_PREFIX = 'truvak_price_history_';
 const WATCHLIST_KEY = 'truvak_watchlist';
+const PLATFORM_DISPLAY = {
+  meesho: {
+    unavailableMessage: 'Price unavailable',
+    unavailableReason: null,
+    showRetry: false,
+  },
+};
 
 function getApiBaseUrl() {
   return window.TRUVAK_API || window.TruvakConfig?.apiUrl || 'http://127.0.0.1:8000';
@@ -212,8 +219,16 @@ function updateComparisonList(comparisonData) {
   }
 
   rows.slice(0, 5).forEach((result) => {
-    const platform = escapeHtml(result.platform || result.source || 'Unknown');
-    const price = escapeHtml(inr(result.price ?? result.offer_price));
+    const platformKey = String(result.platform || result.source || 'unknown').toLowerCase();
+    const platform = escapeHtml(platformKey || 'unknown');
+    const rawPrice = num(result.price ?? result.offer_price, NaN);
+    const hasPrice = Number.isFinite(rawPrice) && rawPrice > 0;
+    const isUnavailable = !hasPrice || String(result.status || '').toUpperCase() === 'UNAVAILABLE';
+    const displayCfg = PLATFORM_DISPLAY[platformKey] || null;
+
+    const price = isUnavailable
+      ? escapeHtml(displayCfg?.unavailableMessage || 'Unavailable')
+      : escapeHtml(inr(rawPrice));
     const confidence = escapeHtml(String(result.confidence || 'low').toLowerCase());
     const isCheaper = Boolean(result.isCheaper ?? result.is_cheaper);
     const savings = escapeHtml(inr(result.savings ?? result.saving_amount ?? 0));
@@ -223,7 +238,7 @@ function updateComparisonList(comparisonData) {
     row.innerHTML = `
       <span>${platform}</span>
       <span>${price}</span>
-      <span class="confidence-indicator ${confidence}">${confidence}</span>
+      <span class="confidence-indicator ${confidence}" style="${isUnavailable ? 'opacity:0.7' : ''}">${isUnavailable ? 'n/a' : confidence}</span>
       <span class="savings-badge" style="${isCheaper ? '' : 'display:none'}">Save ${savings}</span>
     `;
     comparisonContainer.appendChild(row);

@@ -51,6 +51,23 @@ function getDefaultMerchantIdByHost() {
   return 'merchant-amazon';
 }
 
+async function initCustomerCaptchaRecovery(config) {
+  if (!config || config.role !== 'customer') return;
+  if (!/amazon\.in/i.test(window.location.hostname)) return;
+  if (!/\/dp\/[A-Z0-9]{10}/i.test(window.location.pathname)) return;
+
+  if (!window.TruvakExtractor?.extractPageData) return;
+
+  try {
+    const extracted = await window.TruvakExtractor.extractPageData('amazon');
+    if (extracted?.blocked && extracted.reason === 'captcha') {
+      window.TruvakExtractor.watchForCaptchaResolution?.();
+    }
+  } catch (error) {
+    console.warn('[TIP] Customer captcha recovery bootstrap failed', error);
+  }
+}
+
 if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
   chrome.runtime.onMessage.addListener((message) => {
     if (!message) return;
@@ -76,6 +93,8 @@ async function init() {
     console.log('[TIP] Extension disabled until sign-in toggle is enabled in popup');
     return;
   }
+
+  await initCustomerCaptchaRecovery(config);
 
   if (config.role === 'customer' && isAmazonBestsellerPage()) {
     await handleBestsellerBootstrap();

@@ -4,18 +4,20 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from backend.db import get_connection
 
 conn = get_connection()
+cursor = conn.cursor()
 
 # Keep only Shopify orders (numeric IDs) — delete demo orders (ORD-D prefix)
-deleted = conn.execute("""
+cursor.execute("""
     DELETE FROM trust_scores
     WHERE order_id LIKE 'ORD-D%'
     OR order_id LIKE 'ORD-TEST%'
 """)
-conn.execute("""
+cursor.execute("""
     DELETE FROM orders
     WHERE order_id LIKE 'ORD-D%'
     OR order_id LIKE 'ORD-TEST%'
 """)
 conn.commit()
+cursor.close()
 conn.close()
 print(f"Cleared demo orders. Database now contains only real orders.")
