@@ -64,6 +64,15 @@ async def create_selector_report(
     return {"ok": True}
 
 
+@router.post("/v1/selector-health/report")
+async def create_selector_report_alias(
+    payload: SelectorReportRequest,
+    db: Session = Depends(get_db),
+):
+    # Backward-compatible alias for older clients.
+    return await create_selector_report(payload=payload, db=db)
+
+
 @router.get("/v1/health/selector-status", response_model=SelectorStatusResponse)
 async def get_selector_status(
     platform: str | None = Query(default=None),
@@ -129,3 +138,13 @@ async def get_selector_status(
         generated_at=datetime.utcnow().isoformat() + "Z",
         selectors=selectors,
     )
+
+
+@router.get("/v1/selector-health/status", response_model=SelectorStatusResponse)
+async def get_selector_status_alias(
+    platform: str | None = Query(default=None),
+    hours: int = Query(default=24, ge=1, le=168),
+    db: Session = Depends(get_db),
+):
+    # Backward-compatible alias for older clients.
+    return await get_selector_status(platform=platform, hours=hours, db=db)

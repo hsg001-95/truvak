@@ -11,6 +11,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, validator
 import bcrypt
 import jwt
+from google.oauth2 import id_token as google_id_token
+from google.auth.transport.requests import Request as GoogleRequest
 
 from backend.customer_schema import get_customer_db_connection
 from backend.db_adapter import adapt_query
@@ -51,6 +53,20 @@ class CustomerAuthResponse(BaseModel):
     token: str
     pin_code: Optional[str]
     created_at: str
+
+
+class GoogleAuthRequest(BaseModel):
+    id_token: str
+    pin_code: Optional[str] = None
+
+
+def row_value(row, key, default=None):
+    if row is None:
+        return default
+    try:
+        return row[key]
+    except Exception:
+        return default
 
 
 @router.get("/v1/customer/auth/register")
@@ -102,6 +118,26 @@ def verify_jwt_token(token: str) -> str:
         return payload['customer_id_hash']
     except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
         raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+
+def verify_google_id_token(token: str) -> dict:
+    google_client_id = (os.getenv("GOOGLE_CLIENT_ID") or "").strip()
+    if not google_client_id:
+        raise HTTPException(status_code=500, detail="GOOGLE_CLIENT_ID is not configured")
+
+    try:
+        payload = google_id_token.verify_oauth2_token(token, GoogleRequest(), google_client_id)
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid Google token")
+
+    issuer = payload.get("iss")
+    if issuer not in {"accounts.google.com", "https://accounts.google.com"}:
+        raise HTTPException(status_code=401, detail="Invalid Google token issuer")
+
+    if not payload.get("email_verified", False):
+        raise HTTPException(status_code=401, detail="Google account email is not verified")
+
+    return payload
 
 async def get_current_customer(credentials: HTTPAuthorizationCredentials = Depends(HTTP_BEARER_SCHEME)):
     try:
@@ -186,6 +222,96 @@ async def login_customer(customer_request: CustomerLoginRequest):
         raise
     except Exception as e:
         logger.error(f"Login error: {str(e)}")
+        raise HTTPException(status_code=500, detail={"error": "Internal server error", "status_code": 500})
+    finally:
+        db_connection.close()
+
+
+@router.post("/v1/customer/auth/google", response_model=CustomerAuthResponse)
+async def login_customer_google(request: GoogleAuthRequest):
+    db_connection = get_customer_db_connection()
+    try:
+        payload = verify_google_id_token(request.id_token)
+        email = (payload.get("email") or "").strip().lower()
+        provider_sub = (payload.get("sub") or "").strip()
+
+        if not email or not provider_sub:
+            raise HTTPException(status_code=401, detail="Google token missing required claims")
+
+        email_hash = hash_email_for_lookup(email)
+        customer_id_hash = hash_email_for_id(email)
+        cursor = db_connection.cursor()
+
+        cursor.execute(
+            adapt_query("SELECT * FROM customer_accounts WHERE provider_sub = ?"),
+            (provider_sub,),
+        )
+        account = cursor.fetchone()
+
+        if not account:
+            cursor.execute(
+                adapt_query("SELECT * FROM customer_accounts WHERE email_hash = ?"),
+                (email_hash,),
+            )
+            account = cursor.fetchone()
+
+        current_time = datetime.utcnow().isoformat()
+
+        if account:
+            existing_customer_hash = row_value(account, "customer_id_hash")
+            pin_code = request.pin_code if request.pin_code is not None else row_value(account, "pin_code")
+            cursor.execute(
+                adapt_query(
+                    """
+                    UPDATE customer_accounts
+                    SET last_active = ?, auth_provider = ?, provider_sub = ?, pin_code = ?
+                    WHERE customer_id_hash = ?
+                    """
+                ),
+                (current_time, "google", provider_sub, pin_code, existing_customer_hash),
+            )
+            db_connection.commit()
+            token = create_jwt_token(existing_customer_hash)
+
+            return CustomerAuthResponse(
+                customer_id_hash=existing_customer_hash,
+                token=token,
+                pin_code=pin_code,
+                created_at=str(row_value(account, "created_at", current_time)),
+            )
+
+        generated_password = bcrypt.hashpw(os.urandom(24).hex().encode(), bcrypt.gensalt(12)).decode("utf-8")
+        cursor.execute(
+            adapt_query(
+                """
+                INSERT INTO customer_accounts
+                (email_hash, customer_id_hash, password_hash, pin_code, created_at, auth_provider, provider_sub)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """
+            ),
+            (
+                email_hash,
+                customer_id_hash,
+                generated_password,
+                request.pin_code,
+                current_time,
+                "google",
+                provider_sub,
+            ),
+        )
+        db_connection.commit()
+
+        token = create_jwt_token(customer_id_hash)
+        return CustomerAuthResponse(
+            customer_id_hash=customer_id_hash,
+            token=token,
+            pin_code=request.pin_code,
+            created_at=current_time,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Google login error: {str(e)}")
         raise HTTPException(status_code=500, detail={"error": "Internal server error", "status_code": 500})
     finally:
         db_connection.close()

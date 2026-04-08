@@ -159,6 +159,15 @@ async def get_seller_trust(
         conn.close()
 
 
+@router.get("/v1/seller-intel/trust/{seller_id}", response_model=SellerTrustResponse)
+async def get_seller_trust_alias(
+    seller_id: str,
+    _customer_id_hash: str = Depends(get_current_customer),
+):
+    # Backward-compatible alias for older clients.
+    return await get_seller_trust(seller_id=seller_id, _customer_id_hash=_customer_id_hash)
+
+
 @router.get("/v1/product/counterfeit-risk/{product_id}", response_model=CounterfeitRiskResponse)
 async def get_product_counterfeit_risk(
     product_id: str,

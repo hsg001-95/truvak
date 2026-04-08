@@ -65,3 +65,4 @@ bcrypt==4.3.0
 PyJWT==2.10.1
 psycopg2-binary==2.9.9
 supabase==2.3.0
+google-auth==2.40.3

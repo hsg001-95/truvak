@@ -24,21 +24,27 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 REVIEWS_MODELS_DIR = PROJECT_ROOT / "ml" / "reviews" / "models"
 
 
-def _load_pickle_with_fallback(candidates: List[str], label: str):
+def _load_pickle_with_fallback(candidates: List[str], label: str, required: bool = True):
     for name in candidates:
         path = REVIEWS_MODELS_DIR / name
         if path.exists():
             with path.open("rb") as f:
                 logger.info("Loaded %s artifact: %s", label, path)
                 return pickle.load(f)
-    logger.warning("No %s artifact found among: %s", label, candidates)
+    if required:
+        logger.warning("No %s artifact found among: %s", label, candidates)
+    else:
+        logger.info("Optional %s artifact not found among: %s", label, candidates)
     return None
 
 
-def _load_json_if_exists(name: str):
+def _load_json_if_exists(name: str, required: bool = False):
     path = REVIEWS_MODELS_DIR / name
     if not path.exists():
-        logger.warning("%s not found, continuing without it", name)
+        if required:
+            logger.warning("%s not found, continuing without it", name)
+        else:
+            logger.info("Optional %s not found, continuing without it", name)
         return None
     with path.open("r", encoding="utf-8") as f:
         return json.load(f)
@@ -47,17 +53,20 @@ def _load_json_if_exists(name: str):
 STAGE1_MODEL = _load_pickle_with_fallback(
     ["review_model_v1.pkl", "review_model_debug_label.pkl"],
     label="stage1 model",
+    required=True,
 )
 STAGE2_MODEL = _load_pickle_with_fallback(
     ["ensemble_model_v1.pkl", "ensemble_model_debug_label.pkl", "ensemble_model_auto_fallback_test.pkl"],
     label="stage2 model",
+    required=True,
 )
 STAGE3_MODEL = _load_pickle_with_fallback(
     ["xgb_review_model.pkl", "xgb_review_model_v2.pkl"],
     label="stage3 model",
+    required=False,
 )
-TFIDF_VECTORIZER = _load_pickle_with_fallback(["tfidf_vectorizer.pkl"], label="tfidf vectorizer")
-FEATURE_ALIGNMENT = _load_json_if_exists("feature_alignment.json")
+TFIDF_VECTORIZER = _load_pickle_with_fallback(["tfidf_vectorizer.pkl"], label="tfidf vectorizer", required=True)
+FEATURE_ALIGNMENT = _load_json_if_exists("feature_alignment.json", required=False)
 
 router = APIRouter(prefix="/v1/reviews", tags=["reviews"])
 
