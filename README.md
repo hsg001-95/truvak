@@ -213,4 +213,4 @@ Domain-specific Routers:
 **Developed By Snoxx Tech**  
 *Copyright © 2026 Snoxx Tech. All Rights Reserved.*
 
-Proprietary project. All rights reserved by the project owner/team unless explicitly stated otherwise. Unauthorized copying of this file, via any medium is strictly prohibited.
+Proprietary project. All rights reserved by the project owner unless explicitly stated otherwise. Unauthorized copying of this file, via any medium is strictly prohibited.
