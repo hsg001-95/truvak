@@ -34,7 +34,7 @@ export function parseReviewsFromRaw(rawText, productId) {
         .filter((item) => item.review_text.length > 0)
         .slice(0, 100);
     }
-  } catch (_) {
+  } catch {
     // Fall through to line parser.
   }
 

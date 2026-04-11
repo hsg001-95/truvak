@@ -347,7 +347,7 @@ function ensureActionControls() {
   button.className = "truvak-actions-btn";
   button.textContent = "Open Dashboard";
   button.addEventListener("click", () => {
-    window.open("http://localhost:5173", "_blank", "noopener,noreferrer");
+    window.open("http://localhost:5174", "_blank", "noopener,noreferrer");
   });
 
   actionsBody.appendChild(button);
@@ -383,7 +383,7 @@ async function renderAllSections() {
   ensureActionControls();
 }
 
-async function init(pageContext = {}) {
+async function initSidebar(pageContext = {}) {
   state.pageContext = pageContext;
   state.isOpen = true;
 
@@ -421,7 +421,7 @@ function destroy() {
 }
 
 window.TruvakSidebar = {
-  init,
+  init: initSidebar,
   destroy,
   renderSection,
   showSectionLoading,

@@ -1,5 +1,6 @@
 import sys
 import os
+import asyncio
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fastapi import FastAPI, HTTPException, Header, Depends, Query
@@ -14,9 +15,10 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 import time
+from functools import lru_cache
 
 from backend.db import init_db, get_connection
-from backend.db_adapter import adapt_query, health_probe, is_postgres
+from backend.db_adapter import adapt_query, close_connection, get_pool_telemetry, health_probe, is_postgres
 from backend.privacy import hash_buyer_id
 from backend.rule_engine import RuleEngine, Rule
 from backend.reviews_router import router as reviews_router
@@ -40,6 +42,10 @@ import hashlib
 import json
 from fastapi import Request, BackgroundTasks
 from sqlalchemy.orm import Session
+
+if sys.platform.startswith("win"):
+    # Avoid noisy Proactor socket shutdown errors on abrupt client disconnects.
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 # Load Census PIN feature map
 PIN_FEATURE_JSON = os.path.join(
@@ -76,6 +82,8 @@ allow_origins = [
     "http://localhost:8080",
     "http://127.0.0.1:5173",
     "http://localhost:5173",
+    "http://127.0.0.1:5500",
+    "http://localhost:5500",
     "http://127.0.0.1:8501",
     "http://localhost:8501",
     "https://sellercentral.amazon.in",
@@ -89,6 +97,7 @@ if EXTENSION_ORIGIN.startswith("chrome-extension://"):
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allow_origins,
+    allow_origin_regex=r"(https?://(localhost|127\.0\.0\.1)(:\d+)?|chrome-extension://.*)",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -114,6 +123,102 @@ def _error_payload(status_code: int, code: str, message: str, details=None):
     if details is not None:
         payload["error"]["details"] = details
     return payload
+
+
+@lru_cache(maxsize=16)
+def _table_columns(table_name: str):
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        if is_postgres():
+            cursor.execute(
+                """
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = %s
+                """,
+                (table_name,),
+            )
+            rows = cursor.fetchall()
+            return {
+                row["column_name"] if isinstance(row, dict) else row[0]
+                for row in rows
+            }
+
+        cursor.execute(f"PRAGMA table_info({table_name})")
+        rows = cursor.fetchall()
+        return {row[1] for row in rows}
+    finally:
+        cursor.close()
+        close_connection(conn)
+
+
+def _select_with_alias(columns, alias, candidates, fallback_sql):
+    for candidate in candidates:
+        if candidate in columns:
+            return f"{candidate} AS {alias}"
+    return f"{fallback_sql} AS {alias}"
+
+
+def _trust_scores_select_parts():
+    cols = _table_columns("trust_scores")
+
+    score_sql = _select_with_alias(cols, "score", ("score", "trust_score"), "0")
+    risk_sql = _select_with_alias(cols, "risk_level", ("risk_level",), "'UNKNOWN'")
+    action_sql = _select_with_alias(cols, "recommended_action", ("recommended_action",), "'n/a'")
+    is_cod_sql = _select_with_alias(cols, "is_cod", ("is_cod",), "0")
+    order_value_sql = _select_with_alias(cols, "order_value", ("order_value",), "0")
+    pin_sql = _select_with_alias(cols, "pin_code", ("pin_code",), "'------'")
+    created_sql = _select_with_alias(cols, "created_at", ("created_at",), "CURRENT_TIMESTAMP")
+
+    if "created_at" in cols:
+        order_by_sql = "created_at DESC"
+    elif "id" in cols:
+        order_by_sql = "id DESC"
+    else:
+        order_by_sql = "order_id DESC"
+
+    return {
+        "score": score_sql,
+        "risk": risk_sql,
+        "action": action_sql,
+        "is_cod": is_cod_sql,
+        "order_value": order_value_sql,
+        "pin": pin_sql,
+        "created": created_sql,
+        "order_by": order_by_sql,
+    }
+
+
+def _outcomes_parts():
+    cols = _table_columns("outcomes")
+
+    result_col = next(
+        (c for c in ("result", "outcome", "status", "outcome_result") if c in cols),
+        None,
+    )
+    logged_col = next(
+        (c for c in ("logged_at", "created_at", "updated_at", "timestamp") if c in cols),
+        None,
+    )
+    buyer_col = next(
+        (c for c in ("hashed_buyer_id", "buyer_hash", "customer_id_hash") if c in cols),
+        None,
+    )
+
+    if logged_col:
+        order_by_sql = f"{logged_col} DESC"
+    elif "id" in cols:
+        order_by_sql = "id DESC"
+    else:
+        order_by_sql = "order_id DESC"
+
+    return {
+        "result_col": result_col,
+        "logged_col": logged_col,
+        "buyer_col": buyer_col,
+        "order_by": order_by_sql,
+    }
 
 
 @app.exception_handler(HTTPException)
@@ -525,6 +630,7 @@ def startup():
 @app.get("/health")
 def health():
     probe = health_probe()
+    pool = get_pool_telemetry()
     return {
         "status": "ok" if probe.get("connected") else "degraded",
         "model": "rto_model_v1",
@@ -532,6 +638,7 @@ def health():
         "db_status": "connected" if probe.get("connected") else f"error: {probe.get('error', 'unknown')}",
         "db_type": "postgresql" if is_postgres() else "sqlite",
         "db_latency_ms": probe.get("latency_ms"),
+        "db_pool": pool,
         "version": "2.0",
     }
 
@@ -543,13 +650,26 @@ def score_order(req: ScoreRequest):
     # 2. Look up buyer history from DB
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute(
-        adapt_query("SELECT result FROM outcomes WHERE hashed_buyer_id=? AND merchant_id=?"),
-        (hashed, req.merchant_id)
-    )
-    prev_outcomes = cursor.fetchall()
+    outcomes_parts = _outcomes_parts()
+    result_col = outcomes_parts["result_col"]
+    buyer_col = outcomes_parts["buyer_col"]
+
+    try:
+        if result_col and buyer_col:
+            cursor.execute(
+                adapt_query(
+                    f"SELECT {result_col} AS result FROM outcomes WHERE {buyer_col}=? AND merchant_id=?"
+                ),
+                (hashed, req.merchant_id),
+            )
+            prev_outcomes = cursor.fetchall()
+        else:
+            prev_outcomes = []
+    except Exception:
+        # If outcomes schema is drifted, do not fail scoring; treat as no previous outcomes.
+        prev_outcomes = []
     cursor.close()
-    conn.close()
+    close_connection(conn)
 
     prev_rto  = sum(1 for r in prev_outcomes if r["result"] == "rto")
     is_first  = int(len(prev_outcomes) == 0)
@@ -583,16 +703,34 @@ def score_order(req: ScoreRequest):
     # 8. Store score in DB
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute(adapt_query("""
-        INSERT INTO trust_scores
-        (order_id, merchant_id, hashed_buyer_id, score, risk_level,
-         factors, recommended_action, is_cod, order_value, pin_code)
-        VALUES (?,?,?,?,?,?,?,?,?,?)
-    """), (
-        req.order_id, req.merchant_id, hashed, score, risk_level,
-        str(factors), rule_result["recommended_action"],
-        req.is_cod, req.order_value, req.pin_code
-    ))
+    trust_cols = _table_columns("trust_scores")
+    trust_insert = {
+        "order_id": req.order_id,
+        "merchant_id": req.merchant_id,
+        "hashed_buyer_id": hashed,
+        "risk_level": risk_level,
+        "factors": json.dumps(factors),
+        "recommended_action": rule_result["recommended_action"],
+        "is_cod": req.is_cod,
+        "order_value": req.order_value,
+        "pin_code": req.pin_code,
+        "score": score,
+        "trust_score": score,
+        "rto_probability": rto_prob,
+    }
+    insert_cols = [c for c in trust_insert.keys() if c in trust_cols]
+    insert_vals = [trust_insert[c] for c in insert_cols]
+
+    if not insert_cols:
+        raise HTTPException(500, "trust_scores schema has no compatible columns")
+
+    placeholders = ",".join(["?"] * len(insert_cols))
+    cursor.execute(
+        adapt_query(
+            f"INSERT INTO trust_scores ({', '.join(insert_cols)}) VALUES ({placeholders})"
+        ),
+        tuple(insert_vals),
+    )
 
     if is_postgres():
         cursor.execute(
@@ -605,7 +743,7 @@ def score_order(req: ScoreRequest):
                 ON CONFLICT (order_id) DO NOTHING
                 """
             ),
-            (req.order_id, req.merchant_id, hashed, req.order_value, req.is_cod, req.pin_code),
+            (req.order_id, req.merchant_id, hashed, req.order_value, bool(req.is_cod), req.pin_code),
         )
     else:
         cursor.execute(
@@ -617,12 +755,12 @@ def score_order(req: ScoreRequest):
                 VALUES (?,?,?,?,?,?)
                 """
             ),
-            (req.order_id, req.merchant_id, hashed, req.order_value, req.is_cod, req.pin_code),
+            (req.order_id, req.merchant_id, hashed, req.order_value, bool(req.is_cod), req.pin_code),
         )
 
     conn.commit()
     cursor.close()
-    conn.close()
+    close_connection(conn)
 
     return ScoreResponse(
         order_id           = req.order_id,
@@ -641,33 +779,124 @@ def log_outcome(req: OutcomeRequest):
         raise HTTPException(400, "result must be: delivered, rto, or return")
 
     hashed = hash_buyer_id(req.raw_buyer_id, req.merchant_id)
+    outcomes_parts = _outcomes_parts()
+    result_col = outcomes_parts["result_col"]
+    buyer_col = outcomes_parts["buyer_col"]
+    if not result_col:
+        raise HTTPException(500, "Outcomes schema missing result column")
+
     conn   = get_connection()
     cursor = conn.cursor()
-    cursor.execute(adapt_query("""
-        INSERT INTO outcomes
-        (order_id, merchant_id, hashed_buyer_id, result)
-        VALUES (?,?,?,?)
-    """), (req.order_id, req.merchant_id, hashed, req.result))
+    try:
+        if buyer_col:
+            cursor.execute(
+                adapt_query(
+                    f"""
+                    INSERT INTO outcomes
+                    (order_id, merchant_id, {buyer_col}, {result_col})
+                    VALUES (?,?,?,?)
+                    """
+                ),
+                (req.order_id, req.merchant_id, hashed, req.result),
+            )
+        else:
+            cursor.execute(
+                adapt_query(
+                    f"""
+                    INSERT INTO outcomes
+                    (order_id, merchant_id, {result_col})
+                    VALUES (?,?,?)
+                    """
+                ),
+                (req.order_id, req.merchant_id, req.result),
+            )
+    except Exception:
+        # Retry with minimal shared columns if schema differs from introspection.
+        cursor.execute(
+            adapt_query(
+                f"""
+                INSERT INTO outcomes
+                (order_id, merchant_id, {result_col})
+                VALUES (?,?,?)
+                """
+            ),
+            (req.order_id, req.merchant_id, req.result),
+        )
     conn.commit()
     cursor.close()
-    conn.close()
+    close_connection(conn)
     return {"status": "logged", "order_id": req.order_id, "result": req.result}
 
 @app.get("/v1/scores/{merchant_id}")
 def get_scores(merchant_id: str, limit: int = 50):
-    conn  = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(adapt_query("""
-        SELECT order_id, score, risk_level, recommended_action,
-               is_cod, order_value, pin_code, created_at
-        FROM   trust_scores
-        WHERE  merchant_id = ?
-        ORDER  BY created_at DESC
-        LIMIT  ?
-    """), (merchant_id, limit))
-    rows = cursor.fetchall()
-    cursor.close()
-    conn.close()
+    trust_cols = _table_columns("trust_scores")
+    order_cols = _table_columns("orders")
+
+    score_expr = "ts.score" if "score" in trust_cols else ("ts.trust_score" if "trust_score" in trust_cols else "0")
+    risk_expr = "ts.risk_level" if "risk_level" in trust_cols else "'UNKNOWN'"
+    action_expr = "ts.recommended_action" if "recommended_action" in trust_cols else "'n/a'"
+
+    value_candidates = []
+    if "order_value" in trust_cols:
+        value_candidates.append("ts.order_value")
+    if "order_value" in order_cols:
+        value_candidates.append("o.order_value")
+    order_value_expr = f"COALESCE({', '.join(value_candidates)}, 0)" if value_candidates else "0"
+
+    cod_candidates = []
+    if "is_cod" in trust_cols:
+        cod_candidates.append("CAST(ts.is_cod AS INTEGER)")
+    if "is_cod" in order_cols:
+        cod_candidates.append("CAST(o.is_cod AS INTEGER)")
+    is_cod_expr = f"COALESCE({', '.join(cod_candidates)}, 0)" if cod_candidates else "0"
+
+    pin_candidates = []
+    if "pin_code" in trust_cols:
+        pin_candidates.append("ts.pin_code")
+    if "pin_code" in order_cols:
+        pin_candidates.append("o.pin_code")
+    pin_expr = f"COALESCE({', '.join(pin_candidates)}, '------')" if pin_candidates else "'------'"
+
+    if "created_at" in trust_cols:
+        order_by_sql = "ts.created_at DESC"
+    elif "id" in trust_cols:
+        order_by_sql = "ts.id DESC"
+    else:
+        order_by_sql = "ts.order_id DESC"
+
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            adapt_query(
+                f"""
+                SELECT ts.order_id,
+                       {score_expr} AS score,
+                       {risk_expr} AS risk_level,
+                       {action_expr} AS recommended_action,
+                       {is_cod_expr} AS is_cod,
+                       {order_value_expr} AS order_value,
+                       {pin_expr} AS pin_code,
+                       COALESCE(ts.created_at, o.created_at, CURRENT_TIMESTAMP) AS created_at
+                FROM trust_scores ts
+                LEFT JOIN orders o
+                       ON o.order_id = ts.order_id
+                      AND o.merchant_id = ts.merchant_id
+                WHERE ts.merchant_id = ?
+                ORDER BY {order_by_sql}
+                LIMIT ?
+                """
+            ),
+            (merchant_id, limit),
+        )
+        rows = cursor.fetchall()
+    finally:
+        if cursor is not None:
+            cursor.close()
+        close_connection(conn)
+
     return {"merchant_id": merchant_id, "orders": [dict(r) for r in rows]}
 
 @app.get("/v1/rules/{merchant_id}")
@@ -711,21 +940,27 @@ def get_orders(authorization: Optional[str] = Header(default=None)):
         raise HTTPException(status_code=401, detail="Invalid token")
 
     merchant_id = token
+    parts = _trust_scores_select_parts()
+
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
-        adapt_query("""
-        SELECT order_id, score, risk_level
-        FROM trust_scores
-        WHERE merchant_id = ?
-        ORDER BY created_at DESC
-        LIMIT 100
-        """),
+        adapt_query(
+            f"""
+            SELECT order_id,
+                   {parts['score']},
+                   {parts['risk']}
+            FROM trust_scores
+            WHERE merchant_id = ?
+            ORDER BY {parts['order_by']}
+            LIMIT 100
+            """
+        ),
         (merchant_id,),
     )
     rows = cursor.fetchall()
     cursor.close()
-    conn.close()
+    close_connection(conn)
 
     status_map = {
         "HIGH": "Pending",
@@ -787,53 +1022,153 @@ def get_shopify_orders():
     return {"orders": results, "total": len(results)}
 @app.get("/v1/outcomes/{merchant_id}")
 def get_outcomes(merchant_id: str):
+    outcomes_parts = _outcomes_parts()
+    result_col = outcomes_parts["result_col"]
+    logged_col = outcomes_parts["logged_col"]
+    buyer_col = outcomes_parts["buyer_col"]
+    if not result_col:
+        return {"outcomes": []}
+
+    logged_sql = f"{logged_col} AS logged_at" if logged_col else "CURRENT_TIMESTAMP AS logged_at"
+    buyer_sql = f"{buyer_col} AS hashed_buyer_id" if buyer_col else "NULL AS hashed_buyer_id"
+
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute(
-        adapt_query("SELECT * FROM outcomes WHERE merchant_id=? ORDER BY logged_at DESC LIMIT 200"),
-        (merchant_id,)
-    )
-    rows = cursor.fetchall()
+    try:
+        cursor.execute(
+            adapt_query(
+                f"""
+                SELECT order_id, merchant_id, {buyer_sql},
+                       {result_col} AS result,
+                       {logged_sql}
+                FROM outcomes
+                WHERE merchant_id=?
+                ORDER BY {outcomes_parts['order_by']}
+                LIMIT 200
+                """
+            ),
+            (merchant_id,),
+        )
+        rows = cursor.fetchall()
+    except Exception:
+        rows = []
     cursor.close()
-    conn.close()
+    close_connection(conn)
     return {"outcomes": [dict(r) for r in rows]}
 @app.get("/v1/buyer/history/{hashed_buyer_id}/{merchant_id}")
 def get_buyer_history(hashed_buyer_id: str, merchant_id: str):
+    outcomes_parts = _outcomes_parts()
+    result_col = outcomes_parts["result_col"]
+    logged_col = outcomes_parts["logged_col"]
+    buyer_col = outcomes_parts["buyer_col"]
+
+    trust_cols = _table_columns("trust_scores")
+    order_cols = _table_columns("orders")
+
+    score_expr = "ts.score" if "score" in trust_cols else ("ts.trust_score" if "trust_score" in trust_cols else "0")
+    risk_expr = "ts.risk_level" if "risk_level" in trust_cols else "'UNKNOWN'"
+    action_expr = "ts.recommended_action" if "recommended_action" in trust_cols else "'n/a'"
+
+    value_candidates = []
+    if "order_value" in trust_cols:
+        value_candidates.append("ts.order_value")
+    if "order_value" in order_cols:
+        value_candidates.append("o.order_value")
+    order_value_expr = f"COALESCE({', '.join(value_candidates)}, 0)" if value_candidates else "0"
+
+    cod_candidates = []
+    if "is_cod" in trust_cols:
+        cod_candidates.append("CAST(ts.is_cod AS INTEGER)")
+    if "is_cod" in order_cols:
+        cod_candidates.append("CAST(o.is_cod AS INTEGER)")
+    is_cod_expr = f"COALESCE({', '.join(cod_candidates)}, 0)" if cod_candidates else "0"
+
+    created_expr = "COALESCE(ts.created_at, o.created_at, CURRENT_TIMESTAMP)"
+
     conn = get_connection()
     cursor = conn.cursor()
 
     # All orders for this buyer under this merchant
     cursor.execute(adapt_query("""
-        SELECT order_id, score, risk_level, recommended_action,
-               order_value, is_cod, created_at
-        FROM trust_scores
-        WHERE hashed_buyer_id=? AND merchant_id=?
-        ORDER BY created_at DESC
-    """), (hashed_buyer_id, merchant_id))
+        SELECT ts.order_id,
+               {score_expr} AS score,
+               {risk_expr} AS risk_level,
+               {action_expr} AS recommended_action,
+               {order_value_expr} AS order_value,
+               {is_cod_expr} AS is_cod,
+               {created_expr} AS created_at
+        FROM trust_scores ts
+        LEFT JOIN orders o
+               ON o.order_id = ts.order_id
+              AND o.merchant_id = ts.merchant_id
+        WHERE ts.hashed_buyer_id=? AND ts.merchant_id=?
+        ORDER BY ts.created_at DESC
+    """.format(
+        score_expr=score_expr,
+        risk_expr=risk_expr,
+        action_expr=action_expr,
+        order_value_expr=order_value_expr,
+        is_cod_expr=is_cod_expr,
+        created_expr=created_expr,
+    )), (hashed_buyer_id, merchant_id))
     orders = cursor.fetchall()
 
     # Outcomes logged for this buyer
-    cursor.execute(adapt_query("""
-        SELECT result, logged_at
-        FROM outcomes
-        WHERE hashed_buyer_id=? AND merchant_id=?
-        ORDER BY logged_at DESC
-    """), (hashed_buyer_id, merchant_id))
-    outcomes = cursor.fetchall()
+    if result_col and buyer_col:
+        logged_sql = f"{logged_col} AS logged_at" if logged_col else "CURRENT_TIMESTAMP AS logged_at"
+        try:
+            cursor.execute(
+                adapt_query(
+                    f"""
+                    SELECT {result_col} AS result, {logged_sql}
+                    FROM outcomes
+                    WHERE {buyer_col}=? AND merchant_id=?
+                    ORDER BY {outcomes_parts['order_by']}
+                    """
+                ),
+                (hashed_buyer_id, merchant_id),
+            )
+            outcomes = cursor.fetchall()
+        except Exception:
+            outcomes = []
+    else:
+        outcomes = []
 
     cursor.close()
-    conn.close()
+    close_connection(conn)
 
-    total_orders  = len(orders)
-    rto_count     = sum(1 for o in outcomes if o["result"] == "rto")
-    return_count  = sum(1 for o in outcomes if o["result"] == "return")
-    delivered     = sum(1 for o in outcomes if o["result"] == "delivered")
+    # Deduplicate by order_id because rescoring the same order may write multiple rows.
+    unique_orders = []
+    seen_order_ids = set()
+    for row in orders:
+        order_id = row.get("order_id") if isinstance(row, dict) else row["order_id"]
+        if order_id in seen_order_ids:
+            continue
+        seen_order_ids.add(order_id)
+        unique_orders.append(row)
+
+    unique_outcomes = []
+    seen_outcome_order_ids = set()
+    for row in outcomes:
+        order_id = row.get("order_id") if isinstance(row, dict) else row["order_id"] if "order_id" in row else None
+        if order_id is None:
+            unique_outcomes.append(row)
+            continue
+        if order_id in seen_outcome_order_ids:
+            continue
+        seen_outcome_order_ids.add(order_id)
+        unique_outcomes.append(row)
+
+    total_orders  = len(unique_orders)
+    rto_count     = sum(1 for o in unique_outcomes if o["result"] == "rto")
+    return_count  = sum(1 for o in unique_outcomes if o["result"] == "return")
+    delivered     = sum(1 for o in unique_outcomes if o["result"] == "delivered")
     avg_score     = round(
-        sum(o["score"] for o in orders) / total_orders, 1
+        sum(float(o["score"]) for o in unique_orders) / total_orders, 1
     ) if total_orders else 0
-    high_risk     = sum(1 for o in orders if o["risk_level"] == "HIGH")
+    high_risk     = sum(1 for o in unique_orders if o["risk_level"] == "HIGH")
     blocked       = sum(
-        1 for o in orders if o["recommended_action"] == "block_cod"
+        1 for o in unique_orders if o["recommended_action"] == "block_cod"
     )
 
     # Risk profile
@@ -858,7 +1193,7 @@ def get_buyer_history(hashed_buyer_id: str, merchant_id: str):
         "high_risk_count": high_risk,
         "blocked_count":   blocked,
         "risk_profile":    profile,
-        "recent_orders":   [dict(o) for o in orders[:5]],
+        "recent_orders":   [dict(o) for o in unique_orders[:5]],
     }
 
 
@@ -928,3 +1263,4 @@ def get_area_intelligence(pin_code: str):
         "electricity_pct":   round(electric * 100, 1),
         "cod_risk_score":    round(cod_risk, 3),
     }
+

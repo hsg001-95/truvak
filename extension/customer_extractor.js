@@ -1,4 +1,4 @@
-function cleanText(value) {
+function cleanExtractorText(value) {
   if (!value) return '';
   return String(value).replace(/\s+/g, ' ').trim();
 }
@@ -12,7 +12,7 @@ function parsePrice(value) {
 
 let captchaResolutionObserver = null;
 
-function getApiBaseUrl() {
+function getExtractorApiBaseUrl() {
   return window.TRUVAK_API || window.TruvakConfig?.apiUrl || 'http://127.0.0.1:8000';
 }
 
@@ -35,7 +35,7 @@ function reportExtractionHealth(results) {
 
   if (!failedFields.length) return;
 
-  fetch(`${getApiBaseUrl()}/v1/health/selector-report`, {
+  fetch(`${getExtractorApiBaseUrl()}/v1/health/selector-report`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -63,7 +63,7 @@ function watchForCaptchaResolution() {
       if (!data || data.blocked) return;
 
       if (window.TruvakSidebar?.renderSection) {
-        const title = cleanText(data.title || 'Product');
+        const title = cleanExtractorText(data.title || 'Product');
         const price = Number.isFinite(Number(data.currentPrice))
           ? `INR ${Number(data.currentPrice).toLocaleString('en-IN')}`
           : '--';
@@ -90,7 +90,7 @@ function getSelectorSet(platform) {
 function firstText(selectors) {
   for (const selector of selectors) {
     const node = document.querySelector(selector);
-    const text = cleanText(node?.textContent || node?.innerText || '');
+    const text = cleanExtractorText(node?.textContent || node?.innerText || '');
     if (text) return text;
   }
   return '';
@@ -99,14 +99,14 @@ function firstText(selectors) {
 function firstAttr(selectors, attr) {
   for (const selector of selectors) {
     const node = document.querySelector(selector);
-    const value = cleanText(node?.getAttribute?.(attr) || node?.[attr] || '');
+    const value = cleanExtractorText(node?.getAttribute?.(attr) || node?.[attr] || '');
     if (value) return value;
   }
   return '';
 }
 
 async function hashReviewerId(rawId) {
-  const source = cleanText(rawId) || 'unknown-reviewer';
+  const source = cleanExtractorText(rawId) || 'unknown-reviewer';
 
   if (window.crypto?.subtle) {
     const encoder = new TextEncoder();
@@ -128,7 +128,7 @@ async function hashReviewerId(rawId) {
 function extractAmazonCategory() {
   const crumbLinks = Array.from(document.querySelectorAll('#wayfinding-breadcrumbs_feature_div a'));
   const crumbTexts = crumbLinks
-    .map((node) => cleanText(node.textContent || node.innerText))
+    .map((node) => cleanExtractorText(node.textContent || node.innerText))
     .filter(Boolean);
 
   if (crumbTexts.length) {
@@ -136,7 +136,7 @@ function extractAmazonCategory() {
   }
 
   const spans = Array.from(document.querySelectorAll('#wayfinding-breadcrumbs_feature_div span'))
-    .map((node) => cleanText(node.textContent || node.innerText).replace(/›/g, '').trim())
+    .map((node) => cleanExtractorText(node.textContent || node.innerText).replace(/›/g, '').trim())
     .filter(Boolean);
 
   return spans.length ? spans[spans.length - 1] : '';
@@ -147,13 +147,13 @@ function extractAmazonDetailsMap() {
   const detailMap = {};
 
   for (const row of rows) {
-    const key = cleanText(
+    const key = cleanExtractorText(
       row.querySelector('th')?.textContent ||
       row.querySelector('td:first-child')?.textContent ||
       ''
     ).toLowerCase();
 
-    const value = cleanText(
+    const value = cleanExtractorText(
       row.querySelector('td')?.textContent ||
       row.querySelector('td:nth-child(2)')?.textContent ||
       ''
@@ -200,13 +200,13 @@ async function extractAmazonReviews() {
   const reviews = [];
 
   for (const review of reviewNodes) {
-    const text = cleanText(
+    const text = cleanExtractorText(
       review.querySelector('[data-hook="review-body"] span')?.textContent ||
       review.querySelector('[data-hook="review-body"]')?.textContent ||
       ''
     );
 
-    const ratingText = cleanText(
+    const ratingText = cleanExtractorText(
       review.querySelector('[data-hook="review-star-rating"] span')?.textContent ||
       review.querySelector('[data-hook="cmps-review-star-rating"] span')?.textContent ||
       ''
@@ -217,12 +217,12 @@ async function extractAmazonReviews() {
 
     const reviewerLink = review.querySelector('[data-hook="review-author"] a, [data-hook="reviewerName"]');
     const reviewerRawId =
-      cleanText(reviewerLink?.getAttribute?.('href')) ||
-      cleanText(reviewerLink?.textContent || reviewerLink?.innerText) ||
+      cleanExtractorText(reviewerLink?.getAttribute?.('href')) ||
+      cleanExtractorText(reviewerLink?.textContent || reviewerLink?.innerText) ||
       'unknown-reviewer';
 
     const reviewerId = await hashReviewerId(reviewerRawId);
-    const date = cleanText(review.querySelector('[data-hook="review-date"]')?.textContent || '');
+    const date = cleanExtractorText(review.querySelector('[data-hook="review-date"]')?.textContent || '');
 
     if (!text && !rating && !date) continue;
 
@@ -252,7 +252,7 @@ async function extractAmazonProduct() {
 
     const asinInputSelector = Array.isArray(amazonSelectors.asin) ? amazonSelectors.asin[1] : '#ASIN';
     const asinFromUrl = window.location.href.match(/\/dp\/([A-Z0-9]{10})/i)?.[1] || '';
-    const asinFromPage = cleanText(document.querySelector(asinInputSelector)?.value || '');
+    const asinFromPage = cleanExtractorText(document.querySelector(asinInputSelector)?.value || '');
     const asin = (asinFromUrl || asinFromPage || '').toUpperCase();
     if (!asin) return null;
 
@@ -347,26 +347,26 @@ async function extractFlipkartReviews() {
   const reviews = [];
 
   for (const review of reviewNodes) {
-    const text = cleanText(
+    const text = cleanExtractorText(
       review.querySelector('div.ZmyHeo, div._6K-7Co, p')?.textContent ||
       review.querySelector('p._2-N8zT')?.textContent ||
       ''
     );
 
-    const ratingText = cleanText(
+    const ratingText = cleanExtractorText(
       review.querySelector('div.XQDdHH, ._3LWZlK')?.textContent ||
       ''
     );
     const rating = parsePrice(ratingText);
 
-    const reviewerRaw = cleanText(
+    const reviewerRaw = cleanExtractorText(
       review.querySelector('p._2sc7ZR, ._2aI9Q_')?.textContent ||
       review.querySelector('span')?.textContent ||
       'unknown-reviewer'
     );
 
     const reviewerId = await hashReviewerId(reviewerRaw);
-    const date = cleanText(
+    const date = cleanExtractorText(
       review.querySelector('p._2NsDsF, .qXwO1x')?.textContent ||
       ''
     );
@@ -390,7 +390,7 @@ async function extractFlipkartProduct() {
     const flipkartSelectors = getSelectorSet('flipkart');
     const productIdFromPath = window.location.href.match(/\/p\/(itm[a-zA-Z0-9]+)/)?.[1] || '';
     const productIdFromQuery = new URLSearchParams(window.location.search).get('pid') || '';
-    const productId = cleanText(productIdFromPath || productIdFromQuery);
+    const productId = cleanExtractorText(productIdFromPath || productIdFromQuery);
     if (!productId) return null;
 
     const title = firstText(flipkartSelectors.title || ['.B_NuCI', 'h1.yhB1nd', 'h1._6EBuvT']);
@@ -402,10 +402,10 @@ async function extractFlipkartProduct() {
 
     const breadcrumbSelector = (flipkartSelectors.breadcrumbs || ['#breadCrumbs a', '.r2CdBx a']).join(', ');
     const breadcrumbs = Array.from(document.querySelectorAll(breadcrumbSelector))
-      .map((link) => cleanText(link.textContent || link.innerText))
+      .map((link) => cleanExtractorText(link.textContent || link.innerText))
       .filter(Boolean);
 
-    const brand = breadcrumbs[0] || cleanText(title.split(' ')[0]);
+    const brand = breadcrumbs[0] || cleanExtractorText(title.split(' ')[0]);
     if (!brand) return null;
 
     const category = breadcrumbs[1] || breadcrumbs[breadcrumbs.length - 1] || '';
@@ -465,3 +465,4 @@ if (isAmazonProductPage()) {
     // Keep this silent to avoid noisy console for users.
   });
 }
+

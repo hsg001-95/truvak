@@ -14,7 +14,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from backend.db import get_connection
-from backend.db_adapter import adapt_query, is_postgres
+from backend.db_adapter import adapt_query, close_connection, is_postgres
 from backend.privacy import hash_buyer_id
 
 
@@ -162,7 +162,7 @@ def _ensure_review_tables() -> None:
         """
     )
     conn.commit()
-    conn.close()
+    close_connection(conn)
 
 
 def _clean_text(text: str) -> str:
@@ -472,7 +472,7 @@ async def analyze_reviews(request: Request, analysis_request: ReviewAnalysisRequ
     )
 
     cursor.close()
-    conn.close()
+    close_connection(conn)
 
     return ReviewAnalysisResponse(
         product_integrity=product_integrity,
@@ -503,7 +503,7 @@ async def get_product_analysis(product_id: str):
     )
     result = cursor.fetchone()
     cursor.close()
-    conn.close()
+    close_connection(conn)
 
     if not result:
         raise HTTPException(
@@ -565,7 +565,7 @@ async def submit_feedback(feedback_request: FeedbackRequest):
         total_feedback_count = int(count_row[0])
 
     cursor.close()
-    conn.close()
+    close_connection(conn)
 
     return FeedbackResponse(
         status="success",

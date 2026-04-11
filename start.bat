@@ -7,7 +7,7 @@ echo  ╚═══════════════════════�
 echo.
 
 echo  [1/3] Starting FastAPI backend on port 8000...
-start "Trust API" cmd /k "cd /d %~dp0 && venv\Scripts\python.exe -m uvicorn backend.main:app --reload --port 8000"
+start "Trust API" cmd /k "cd /d %~dp0 && venv\Scripts\python.exe -m uvicorn backend.main:app --reload --reload-dir backend --reload-include *.py --port 8000"
 
 timeout /t 3 /nobreak > nul
 

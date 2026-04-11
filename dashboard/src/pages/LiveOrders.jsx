@@ -12,6 +12,7 @@ export default function LiveOrders() {
 
   useEffect(() => {
     let alive = true;
+    let intervalId;
 
     async function loadInitial() {
       const rows = await getOrders(merchantId);
@@ -21,9 +22,11 @@ export default function LiveOrders() {
     }
 
     loadInitial();
+    intervalId = window.setInterval(loadInitial, 8000);
 
     return () => {
       alive = false;
+      if (intervalId) window.clearInterval(intervalId);
     };
   }, [merchantId]);
 
@@ -114,7 +117,7 @@ export default function LiveOrders() {
                   <td className="px-4 py-3 text-sm">{order.pin_code}</td>
                   <td className="px-4 py-3 text-sm">{order.risk_level}</td>
                   <td className="px-4 py-3 text-sm">{order.score}</td>
-                  <td className="px-4 py-3 text-sm">{order.recommended_action}</td>
+                  <td className="px-4 py-3 text-sm">{order.recommended_action_label || order.recommended_action}</td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
                       <button onClick={() => onOutcome(order.id, 'delivered')} className="text-[11px] px-2 py-1 border border-emerald-500 text-emerald-400 rounded">Delivered</button>

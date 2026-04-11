@@ -18,9 +18,16 @@ _DEFAULT_SQLITE_PATH = Path(__file__).resolve().parents[1] / "data" / "trust.db"
 _DATABASE_URL = (os.getenv("DATABASE_URL") or "sqlite:///data/trust.db").strip()
 _POOL_MIN = int(os.getenv("DB_POOL_MIN", "2"))
 _POOL_MAX = int(os.getenv("DB_POOL_MAX", "10"))
+_POOL_GET_TIMEOUT_MS = int(os.getenv("DB_POOL_GET_TIMEOUT_MS", "3000"))
+_POOL_GET_RETRY_MS = int(os.getenv("DB_POOL_GET_RETRY_MS", "50"))
 
 _pool_lock = threading.Lock()
 _pool: Any = None
+_pooled_conn_ids = set()
+_metrics_lock = threading.Lock()
+_pool_checkout_count = 0
+_pool_wait_count = 0
+_pool_exhausted_count = 0
 
 
 def _url_scheme() -> str:
@@ -105,18 +112,82 @@ def close_pool() -> None:
                 _pool = None
 
 
+def get_pool_telemetry() -> Dict[str, Any]:
+    if not is_postgres():
+        return {
+            "enabled": False,
+            "db_type": "sqlite",
+        }
+
+    pool_instance = get_pool()
+    if pool_instance is None:
+        return {
+            "enabled": False,
+            "db_type": "postgresql",
+            "error": "pool_unavailable",
+        }
+
+    free_conns = len(getattr(pool_instance, "_pool", []) or [])
+    used_map = getattr(pool_instance, "_used", {}) or {}
+    checked_out = len(used_map)
+
+    with _metrics_lock:
+        checkout_count = _pool_checkout_count
+        wait_count = _pool_wait_count
+        exhausted_count = _pool_exhausted_count
+
+    return {
+        "enabled": True,
+        "db_type": "postgresql",
+        "configured_min": max(1, _POOL_MIN),
+        "configured_max": max(max(1, _POOL_MIN), _POOL_MAX),
+        "free_connections": free_conns,
+        "checked_out_connections": checked_out,
+        "total_tracked_connections": free_conns + checked_out,
+        "checkout_count": checkout_count,
+        "wait_count": wait_count,
+        "exhausted_count": exhausted_count,
+        "get_timeout_ms": _POOL_GET_TIMEOUT_MS,
+        "retry_interval_ms": _POOL_GET_RETRY_MS,
+    }
+
+
 def get_connection():
+    global _pool_checkout_count, _pool_wait_count, _pool_exhausted_count
+
     if is_postgres():
         _import_psycopg2()
         pg_pool = get_pool()
         if pg_pool is None:
             raise RuntimeError("PostgreSQL pool unavailable")
 
-        conn = pg_pool.getconn()
+        deadline = time.monotonic() + max(0, _POOL_GET_TIMEOUT_MS) / 1000.0
+        while True:
+            try:
+                conn = pg_pool.getconn()
+                with _metrics_lock:
+                    _pool_checkout_count += 1
+                break
+            except Exception as exc:
+                err_text = str(exc).lower()
+                if "pool exhausted" in err_text and time.monotonic() < deadline:
+                    with _metrics_lock:
+                        _pool_wait_count += 1
+                    time.sleep(max(1, _POOL_GET_RETRY_MS) / 1000.0)
+                    continue
+                if "pool exhausted" in err_text:
+                    with _metrics_lock:
+                        _pool_exhausted_count += 1
+                logger.error("Failed to checkout PostgreSQL connection: %s", exc)
+                raise
+
         conn.autocommit = False
 
-        # Tag pooled connections so close_connection can safely return them.
-        setattr(conn, "_truvak_from_pool", True)
+        # psycopg2 connection objects may block arbitrary attributes; keep a fallback registry.
+        try:
+            setattr(conn, "_truvak_from_pool", True)
+        except Exception:
+            _pooled_conn_ids.add(id(conn))
         return conn
 
     sqlite_path = _sqlite_file_path()
@@ -129,10 +200,13 @@ def close_connection(conn) -> None:
     if conn is None:
         return
 
-    if is_postgres() and getattr(conn, "_truvak_from_pool", False):
+    from_pool = getattr(conn, "_truvak_from_pool", False) or (id(conn) in _pooled_conn_ids)
+
+    if is_postgres() and from_pool:
         pool_instance = get_pool()
         if pool_instance is not None:
             pool_instance.putconn(conn)
+        _pooled_conn_ids.discard(id(conn))
         return
 
     conn.close()

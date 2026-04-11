@@ -13,6 +13,7 @@ export default function Overview() {
 
   useEffect(() => {
     let alive = true;
+    let intervalId;
 
     async function load() {
       const data = await getOrders(getActiveMerchantId());
@@ -22,8 +23,10 @@ export default function Overview() {
     }
 
     load();
+    intervalId = window.setInterval(load, 8000);
     return () => {
       alive = false;
+      if (intervalId) window.clearInterval(intervalId);
     };
   }, []);
 
@@ -90,7 +93,7 @@ export default function Overview() {
                   <div className={`w-2 h-2 rounded-full shrink-0 ${order.risk_level === 'HIGH' ? 'bg-error' : 'bg-tertiary'}`}></div>
                   <div className="flex-1">
                     <h4 className="text-sm font-semibold text-white">Order {order.id}</h4>
-                    <p className="text-xs text-on-surface-variant mt-1">Action: {order.recommended_action} | PIN: {order.pin_code}</p>
+                    <p className="text-xs text-on-surface-variant mt-1">Action: {order.recommended_action_label || order.recommended_action} | PIN: {order.pin_code}</p>
                   </div>
                   <div className={`text-xs font-bold ${getRiskColor(order.risk_level)}`}>{order.risk_level}</div>
                 </div>

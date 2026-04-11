@@ -21,7 +21,22 @@ const latencyValue = document.getElementById('latencyValue');
 const resourceValue = document.getElementById('resourceValue');
 const orderHistory = document.getElementById('orderHistory');
 const MERCHANT_ID = localStorage.getItem('tip_merchant_id') || 'merchant_amazon';
-const DASHBOARD_URL = localStorage.getItem('tip_dashboard_url') || 'http://localhost:8501';
+const savedDashboardUrl = localStorage.getItem('tip_dashboard_url');
+const DASHBOARD_URL = !savedDashboardUrl || savedDashboardUrl.includes(':8501') || savedDashboardUrl.includes(':5173')
+    ? 'http://localhost:5174'
+    : savedDashboardUrl;
+
+if (!savedDashboardUrl || savedDashboardUrl.includes(':8501') || savedDashboardUrl.includes(':5173')) {
+    localStorage.setItem('tip_dashboard_url', DASHBOARD_URL);
+}
+
+if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+    chrome.storage.local.set({
+        dashboardUrl: DASHBOARD_URL,
+        merchantId: MERCHANT_ID,
+        apiUrl: API_BASE,
+    });
+}
 
 let isCollapsed = false;
 let logsVisible = false;

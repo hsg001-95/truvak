@@ -1,0 +1,12 @@
+{
+  "name": "trust-intelligence-platform-tests",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "test:dashboard": "npm --prefix dashboard run test",
+    "test:extension": "npm --prefix extension run smoke",
+    "test:extension:chrome": "npm --prefix extension run smoke:chrome",
+    "test:all": "npm run test:dashboard && npm run test:extension",
+    "test:all:chrome": "npm run test:dashboard && npm run test:extension:chrome"
+  }
+}

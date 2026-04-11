@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from backend.customer_auth_router import get_current_customer
 from backend.customer_models import ProductPriceSummary, get_db
 from backend.db import get_connection
-from backend.db_adapter import adapt_query
+from backend.db_adapter import adapt_query, close_connection
 
 CATEGORY_RISK_LEVELS = {
     "electronics": "HIGH",
@@ -156,7 +156,7 @@ async def get_seller_trust(
         raise HTTPException(status_code=500, detail=f"Error retrieving seller trust: {exc}")
     finally:
         cursor.close()
-        conn.close()
+        close_connection(conn)
 
 
 @router.get("/v1/seller-intel/trust/{seller_id}", response_model=SellerTrustResponse)

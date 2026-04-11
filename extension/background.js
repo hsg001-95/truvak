@@ -342,6 +342,18 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || typeof msg !== 'object') return;
 
+  if (msg.type === 'OPEN_DASHBOARD') {
+    const targetUrl = String(msg.url || '').trim() || 'http://localhost:5174';
+    chrome.tabs.create({ url: targetUrl }, () => {
+      if (chrome.runtime.lastError) {
+        sendResponse?.({ ok: false, reason: chrome.runtime.lastError.message });
+        return;
+      }
+      sendResponse?.({ ok: true });
+    });
+    return true;
+  }
+
   if (msg.type === 'SHOW_NOTIFICATION') {
     chrome.notifications.create(`tip_notice_${Date.now()}`, {
       type: 'basic',

@@ -1,144 +1,141 @@
 <div align="center">
+  <img src="docs/assets/truvak_logo.png" alt="Truvak Logo" width="250"/>
+  
+  # Truvak
+  ### AI-Powered Risk Intelligence for E-commerce Operations
+  
+  <p>
+    <img alt="Python" src="https://img.shields.io/badge/Python-3.9%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" />
+    <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-API%20Layer-009688?style=for-the-badge&logo=fastapi&logoColor=white" />
+    <img alt="React" src="https://img.shields.io/badge/React-Frontend-61DAFB?style=for-the-badge&logo=react&logoColor=111" />
+    <img alt="Vite" src="https://img.shields.io/badge/Vite-Build-646CFF?style=for-the-badge&logo=vite&logoColor=white" />
+    <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-Supabase-336791?style=for-the-badge&logo=postgresql&logoColor=white" />
+    <img alt="SQLite" src="https://img.shields.io/badge/SQLite-Local%20Dev-003B57?style=for-the-badge&logo=sqlite&logoColor=white" />
+  </p>
 
-# Trust Intelligence Platform
-### AI-Powered Risk Intelligence for E-commerce Operations
+  <p>
+    A production-style platform for fraud-risk scoring, review intelligence, seller trust insights, and customer-side spending/watchlist analytics.
+  </p>
 
-<p>
-  <img alt="Python" src="https://img.shields.io/badge/Python-3.9%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" />
-  <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-API%20Layer-009688?style=for-the-badge&logo=fastapi&logoColor=white" />
-  <img alt="React" src="https://img.shields.io/badge/React-Frontend-61DAFB?style=for-the-badge&logo=react&logoColor=111" />
-  <img alt="Vite" src="https://img.shields.io/badge/Vite-Build-646CFF?style=for-the-badge&logo=vite&logoColor=white" />
-  <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-Supabase-336791?style=for-the-badge&logo=postgresql&logoColor=white" />
-  <img alt="SQLite" src="https://img.shields.io/badge/SQLite-Local%20Dev-003B57?style=for-the-badge&logo=sqlite&logoColor=white" />
-</p>
-
-<p>
-  A production-style platform for fraud-risk scoring, review intelligence, seller trust insights, and customer-side spending/watchlist analytics.
-</p>
-
+  <p>
+    <i>Developed By <b>Snoxx Tech</b></i>
+  </p>
 </div>
 
 ---
 
-## Why This Project
+## 🌟 Why Truvak?
 
-Trust Intelligence Platform helps detect risk early and convert raw marketplace activity into actionable trust signals:
+Truvak helps detect risk early and convert raw marketplace activity into actionable trust signals:
 
-- RTO risk scoring for orders before shipment.
-- Review integrity analysis with explainability.
-- Customer trust features such as spend trends, watchlist, and price intelligence.
-- Browser extension integration for marketplace context.
-- Database portability: local SQLite and Supabase PostgreSQL.
+- **🛡️ RTO Risk Scoring** for orders before shipment.
+- **🔍 Review Integrity Analysis** with robust explainability.
+- **💡 Customer Trust Features** such as spend trends, watchlists, and price intelligence.
+- **🔌 Contextual Browser Extension** for seamless marketplace integration.
+- **🗄️ Database Portability**: Full compatibility with local SQLite for rapid prototyping and Supabase PostgreSQL for scalable production logic.
 
 ---
 
-## What Is Included
+## 📦 What Is Included
 
-### Core Backend (FastAPI)
+### ⚙️ Core Backend (FastAPI)
 
 - RTO scoring endpoints and rule engine.
-- Merchant auth, outcomes logging, and order history APIs.
-- Review intelligence router.
-- Customer auth and analytics routers.
-- Price intelligence, watchlist, and seller intel routers.
+- Merchant authentication, outcome logging, and order history APIs.
+- Dedicated routers for Review Intelligence, Customer Authentication, and Analytics.
+- Specialized APIs for Price Intelligence, Watchlists, and Seller Intelligence.
 - Selector health telemetry endpoint for extension reliability.
 
-### Frontend Apps
+### 💻 Frontend Experiences
 
-- Merchant dashboard app in `dashboard/` (React + Vite).
-- Customer app in `customer/` (React + Vite).
-- Customer app now consumes backend APIs (no direct browser-side Supabase table access).
+- **Merchant Dashboard** (`dashboard/`): Intelligent React + Vite SPA built to help merchants visualize real-time RTO risk.
+- **Customer App** (`customer/`): React + Vite portal for customer-centric analytics and spending intel. Fully consumes backend APIs for robust data fetching.
 
-### Browser Extension
+### 🧩 Browser Extension
 
-- Manifest V3 extension in `extension/`.
-- Amazon and Flipkart content scripts.
-- Anti-blocking hardening (retry/caching strategy, selector health telemetry, CAPTCHA-aware resume flow).
+- A fully functional **Manifest V3 Extension** located in `extension/`.
+- Embedded content scripts for seamless integration with Amazon and Flipkart.
+- Hardened anti-blocking mechanisms (retry/caching capabilities, selector health telemetry, and CAPTCHA-aware resume flows).
 
-### Data and ML
+### 🧠 Data and ML Pipeline
 
-- PIN tier and feature maps under `data/`.
-- ML training/processing scripts under `ml/`.
-- RTO model (`ml/rto_model_v1.pkl`) loaded by backend startup.
+- Includes comprehensive PIN tier data and targeted feature schemas under `data/`.
+- Ready-to-go Machine Learning scripts deployed in `ml/`.
+- Core RTO predictive model (`ml/rto_model_v1.pkl`) seamlessly loaded at instance startup.
 
 ---
 
-## New Integrations (Latest)
+## 🚀 Latest Integrations
 
-### Supabase/PostgreSQL Integration
+### Data Persistence (Supabase / PostgreSQL)
 
-- Environment-driven database connection via `DATABASE_URL`.
-- Backend is compatible with:
-  - SQLite for local dev fallback.
-  - PostgreSQL/Supabase for hosted persistence.
-- Added migration and verification scripts:
+- **Dynamic Connection Routing**: Driven via the `DATABASE_URL` environment configuration.
+- **Fully Interchangeable SQL Engines**:
+  - Run **SQLite** locally or offline.
+  - Switch to **PostgreSQL/Supabase** for enterprise features.
+- Powerful migration tooling included:
   - `scripts/export_sqlite.py`
   - `scripts/migrate_to_supabase.py`
   - `scripts/test_supabase_connection.py`
-- Migration flow now handles common cross-dialect issues:
-  - Column mismatch handling.
-  - Boolean type normalization.
-  - JSON/JSONB normalization.
-  - Source/target alias mapping where required.
+- Battle-tested migration logic handles strict boolean types, column mismatches, JSON/JSONB normalization, and target alias mapping out of the box.
 
-### Customer Data Flow Hardening
+### Customer Data Hardening & Security
 
-- Added backend endpoint: `GET /v1/customer/orders/recent`.
-- Customer home UI reads from backend APIs instead of direct DB/Supabase client access.
-- Frontend env cleaned to only required runtime variable for API base URL.
+- New endpoint availability: `GET /v1/customer/orders/recent`.
+- Upgraded UI interactions fetching via securely marshaled backend API payloads as opposed to raw database hooks.
 
 ---
 
-## Repository Layout
+## 📂 Repository Architecture
 
 ```text
-trust-intelligence-platform/
-├── backend/                 # FastAPI app and routers
-├── customer/                # Customer React app (Vite)
-├── dashboard/               # Merchant React app (Vite)
-├── extension/               # Browser extension (Manifest V3)
-├── ml/                      # Model and ML scripts
-├── data/                    # PIN maps and datasets
-├── scripts/                 # DB migration/testing utilities
-├── requirements.txt
-├── .env.example
-└── start.bat
+truvak/
+├── backend/                 # FastAPI logic routing layer
+├── customer/                # User dashboard (React + Vite)
+├── dashboard/               # Risk evaluation hub (React + Vite)
+├── docs/                    # Architectural images and docs
+├── extension/               # Browser context scripts (MV3)
+├── ml/                      # Data modeling and intelligence algorithms
+├── data/                    # Model resources, pin maps
+├── scripts/                 # Administration and migration scripts
+├── requirements.txt         # Core backend python dependencies
+├── .env.example             # Base scaffolding variables
+└── start.bat                # Unified application launcher
 ```
 
 ---
 
-## Quick Start (Windows)
+## ⚡ Quick Start (Windows)
 
-### 1. Prerequisites
+### 1. Prerequisites Set-up
 
+Ensure your system aligns with:
 - Python 3.9+
 - Node.js 18+
-- npm
-- ngrok (optional but needed for webhook/public callback testing)
+- npm (Node Package Manager)
+- ngrok *(optional; useful for Shopify/webhooks simulation)*
 
-### 2. Backend Setup
+### 2. Scaffold the Backend Environment
 
 ```powershell
-cd trust-intelligence-platform
+cd truvak # or your containing folder
 python -m venv venv
 .\venv\Scripts\activate
 python -m pip install -r requirements.txt
 ```
 
-### 3. Configure Environment
+### 3. Establish Configurations
 
-Create `.env` in `trust-intelligence-platform/` from `.env.example` and set values.
+Copy `.env.example` into a new `.env` file at the root. Set baseline properties:
 
-Minimum local setup:
-
+**Standard Local Spin-up (SQLite):**
 ```env
 DATABASE_URL=sqlite:///data/trust.db
-JWT_SECRET=change-this
-CUSTOMER_SALT=change-this
+JWT_SECRET=super_secret_token
+CUSTOMER_SALT=super_secret_salt
 ```
 
-Supabase/PostgreSQL setup:
-
+**Production-grade (PostgreSQL/Supabase):**
 ```env
 DATABASE_URL=postgresql://postgres:<PASSWORD>@<HOST>:5432/postgres?sslmode=require
 SUPABASE_URL=https://<PROJECT>.supabase.co
@@ -146,66 +143,52 @@ SUPABASE_ANON_KEY=<ANON_KEY>
 SUPABASE_SERVICE_ROLE_KEY=<SERVICE_ROLE_KEY>
 ```
 
-### 4. Frontend Setup
+### 4. Build the Frontends
 
 ```powershell
 cd customer
 npm install
 cd ..\dashboard
 npm install
+cd ..
 ```
 
-`customer/.env.example` expects:
+*Note: Verify `customer/.env` includes `VITE_API_URL=http://127.0.0.1:8000` (can be copied from `customer/.env.example`).*
 
-```env
-VITE_API_URL=http://127.0.0.1:8000
-```
+### 5. Launch the Platform
 
-### 5. Run Services
-
-Option A (quick):
-
+**The One-click Approach:**
 ```powershell
 start.bat
 ```
 
-Option B (manual):
-
+**The Manual Approach:**
 ```powershell
-# Terminal 1
+# Term 1: Run Backend
 .\venv\Scripts\python.exe -m uvicorn backend.main:app --reload --port 8000
 
-# Terminal 2
+# Term 2: Run Customer UX
 cd customer
 npm run dev
 
-# Terminal 3 (optional)
+# Term 3: Run Merchant Hub
 cd dashboard
 npm run dev
 ```
 
 ---
 
-## API Snapshot
+## 🌐 API Snapshot
 
-Main app endpoints from `backend/main.py`:
+Main application nodes from `backend/main.py`:
 
-- `GET /healthz`
-- `GET /health`
-- `POST /v1/login`
-- `POST /v1/score`
-- `POST /v1/outcome`
-- `GET /v1/scores/{merchant_id}`
-- `GET /v1/orders`
-- `GET /v1/rules/{merchant_id}`
-- `POST /v1/rules/{merchant_id}/threshold`
-- `GET /v1/buyer/history/{hashed_buyer_id}/{merchant_id}`
-- `GET /v1/area/intelligence/{pin_code}`
-- `POST /v1/shopify/webhook`
-- `GET /v1/shopify/orders`
+- **Platform Health:** `GET /healthz` | `GET /health`
+- **Core Operations:** `POST /v1/login` | `POST /v1/score` | `POST /v1/outcome`
+- **Risk Evaluation:** `GET /v1/scores/{merchant_id}` | `GET /v1/orders` | `GET /v1/rules/{...}` | `POST /v1/rules/{...}/threshold`
+- **Geospatial Risk:** `GET /v1/area/intelligence/{pin_code}`
+- **Webhooks:** `POST /v1/shopify/webhook` | `GET /v1/shopify/orders`
 
-Additional routed APIs:
-
+Domain-specific Routers:
 - `/v1/reviews/*`
 - `/v1/customer/*`
 - `/v1/watchlist/*`
@@ -213,42 +196,21 @@ Additional routed APIs:
 - `/v1/seller/*`
 - `/v1/health/*`
 
-Interactive docs when server is running:
-
-- `http://127.0.0.1:8000/docs`
+**API playground available at** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) when running locally.
 
 ---
 
-## Supabase Validation & Migration Workflow
+## 🛡️ Best Practices & Quality Control
 
-### Validate connection and required tables
-
-```powershell
-.\venv\Scripts\python.exe scripts\test_supabase_connection.py
-```
-
-### Migrate from SQLite to Supabase PostgreSQL
-
-```powershell
-.\venv\Scripts\python.exe scripts\migrate_to_supabase.py
-```
-
-### Export SQLite (if needed)
-
-```powershell
-.\venv\Scripts\python.exe scripts\export_sqlite.py
-```
+- ✨ Ensure `.env` is strongly sequestered; never commit actual secrets into your VCS.
+- ✨ Run python scripts utilizing `python -m <package>` inside a populated virtual environment.
+- ✨ Prefer mediated routing configurations natively exposed via FastAPI rather than direct front-end database interactions.
 
 ---
 
-## Quality and Safety Notes
+## 📜 Copyright & Licensing
 
-- Keep `.env` private; never commit real secrets.
-- Use `python -m <module>` in venv on Windows to avoid stale launcher path issues if the project folder is moved.
-- Prefer backend-mediated access for sensitive data operations.
+**Developed By Snoxx Tech**  
+*Copyright © 2026 Snoxx Tech. All Rights Reserved.*
 
----
-
-## License
-
-Proprietary project. All rights reserved by the project owner/team unless explicitly stated otherwise.
+Proprietary project. All rights reserved by the project owner/team unless explicitly stated otherwise. Unauthorized copying of this file, via any medium is strictly prohibited.

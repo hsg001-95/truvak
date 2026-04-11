@@ -3,26 +3,56 @@ import axios from 'axios';
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 const DEFAULT_MERCHANT_ID = 'merchant_amazon';
 
+const normalizeMerchantId = (merchantId) => {
+  const raw = String(merchantId || '').trim();
+  if (!raw) return DEFAULT_MERCHANT_ID;
+  if (raw === 'merchant_local' || raw === 'merchant-local') return DEFAULT_MERCHANT_ID;
+  if (raw === 'merchant-amazon') return 'merchant_amazon';
+  if (raw === 'merchant-flipkart') return 'merchant_flipkart';
+  return raw;
+};
+
+const merchantCandidates = (merchantId) => {
+  const normalized = normalizeMerchantId(merchantId);
+  const variants = [
+    normalized,
+    normalized.replace(/-/g, '_'),
+    normalized.replace(/_/g, '-'),
+  ];
+
+  return [...new Set(variants.filter(Boolean))];
+};
+
 export const getActiveMerchantId = () => {
   const saved = window.localStorage.getItem('tip_merchant_id');
-  return saved || DEFAULT_MERCHANT_ID;
+  return normalizeMerchantId(saved || DEFAULT_MERCHANT_ID);
 };
 
 export const setActiveMerchantId = (merchantId) => {
-  window.localStorage.setItem('tip_merchant_id', merchantId);
+  window.localStorage.setItem('tip_merchant_id', normalizeMerchantId(merchantId));
 };
 
-const normalizeOrder = (order) => ({
-  id: order.id || order.order_id || 'ORD-NA',
-  score: typeof order.score === 'number' ? order.score : Number(order.score || 0),
-  risk_level: order.risk_level || 'UNKNOWN',
-  recommended_action: order.recommended_action || 'n/a',
-  is_cod: Number(order.is_cod || 0),
-  order_value: Number(order.order_value || 0),
-  pin_code: order.pin_code || '------',
-  created_at: order.created_at || null,
-  buyer_id: order.buyer_id || order.hashed_buyer_id || order.raw_buyer_id || null,
-});
+const normalizeOrder = (order) => {
+  const rawAction = String(order.recommended_action || 'n/a').toLowerCase();
+  const actionLabel = rawAction === 'flag_review'
+    ? 'flag review'
+    : rawAction === 'block_cod'
+      ? 'block cod'
+      : rawAction;
+
+  return {
+    id: order.id || order.order_id || 'ORD-NA',
+    score: typeof order.score === 'number' ? order.score : Number(order.score || 0),
+    risk_level: order.risk_level || 'UNKNOWN',
+    recommended_action: rawAction,
+    recommended_action_label: actionLabel,
+    is_cod: Number(order.is_cod || 0),
+    order_value: Number(order.order_value || 0),
+    pin_code: order.pin_code || '------',
+    created_at: order.created_at || null,
+    buyer_id: order.buyer_id || order.hashed_buyer_id || order.raw_buyer_id || null,
+  };
+};
 
 export const apiClient = axios.create({
   baseURL: API_URL,
@@ -50,10 +80,20 @@ export const apiPost = async (endpoint, payload) => {
 };
 
 export const getOrders = async (merchant_id) => {
-  const merchantId = merchant_id || getActiveMerchantId();
-  const data = await apiGet(`/v1/scores/${merchantId}?limit=200`);
-  const rawOrders = Array.isArray(data?.orders) ? data.orders : [];
-  return rawOrders.map(normalizeOrder);
+  const merchantId = normalizeMerchantId(merchant_id || getActiveMerchantId());
+
+  for (const candidate of merchantCandidates(merchantId)) {
+    const data = await apiGet(`/v1/scores/${candidate}?limit=200`);
+    const rawOrders = Array.isArray(data?.orders) ? data.orders : [];
+    if (rawOrders.length > 0) {
+      setActiveMerchantId(candidate);
+      return rawOrders
+        .map(normalizeOrder)
+        .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+    }
+  }
+
+  return [];
 };
 
 export const scoreOrder = async (payload) => {
@@ -61,20 +101,29 @@ export const scoreOrder = async (payload) => {
 };
 
 export const getRules = async (merchant_id) => {
-  const merchantId = merchant_id || getActiveMerchantId();
+  const merchantId = normalizeMerchantId(merchant_id || getActiveMerchantId());
   const data = await apiGet(`/v1/rules/${merchantId}`);
   return Array.isArray(data?.rules) ? data.rules : [];
 };
 
 export const updateCodThreshold = async (merchant_id, threshold) => {
-  const merchantId = merchant_id || getActiveMerchantId();
+  const merchantId = normalizeMerchantId(merchant_id || getActiveMerchantId());
   return await apiPost(`/v1/rules/${merchantId}/threshold?threshold=${Number(threshold)}`, {});
 };
 
 export const getOutcomes = async (merchant_id) => {
-  const merchantId = merchant_id || getActiveMerchantId();
-  const data = await apiGet(`/v1/outcomes/${merchantId}`);
-  return Array.isArray(data?.outcomes) ? data.outcomes : [];
+  const merchantId = normalizeMerchantId(merchant_id || getActiveMerchantId());
+
+  for (const candidate of merchantCandidates(merchantId)) {
+    const data = await apiGet(`/v1/outcomes/${candidate}`);
+    const outcomes = Array.isArray(data?.outcomes) ? data.outcomes : [];
+    if (outcomes.length > 0) {
+      setActiveMerchantId(candidate);
+      return outcomes;
+    }
+  }
+
+  return [];
 };
 
 export const getAreaIntelligence = async (pinCode) => {
@@ -84,14 +133,15 @@ export const getAreaIntelligence = async (pinCode) => {
 
 export const getBuyerHistory = async (hashedBuyerId, merchant_id) => {
   if (!hashedBuyerId) return null;
-  const merchantId = merchant_id || getActiveMerchantId();
+  const merchantId = normalizeMerchantId(merchant_id || getActiveMerchantId());
   return await apiGet(`/v1/buyer/history/${hashedBuyerId}/${merchantId}`);
 };
 
 export const logOutcome = async (order_id, merchant_id, buyer_id, result) => {
+  const merchantId = normalizeMerchantId(merchant_id || getActiveMerchantId());
   return await apiPost("/v1/outcome", {
     order_id,
-    merchant_id,
+    merchant_id: merchantId,
     raw_buyer_id: buyer_id,
     result
   });

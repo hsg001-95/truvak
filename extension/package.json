@@ -1,0 +1,16 @@
+{
+  "name": "trust-intel-extension-tests",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "smoke": "playwright test",
+    "smoke:chrome": "set PW_CHROME_CHANNEL=chrome&& playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.2"
+  },
+  "dependencies": {
+    "trust-intelligence-platform-tests": "file:.."
+  }
+}

@@ -8,11 +8,11 @@ const PLATFORM_DISPLAY = {
   },
 };
 
-function getApiBaseUrl() {
+function getPriceIntelApiBaseUrl() {
   return window.TRUVAK_API || window.TruvakConfig?.apiUrl || 'http://127.0.0.1:8000';
 }
 
-function escapeHtml(value) {
+function escapePriceIntelHtml(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -182,7 +182,7 @@ function displayMinimalSection(currentPrice) {
 
   const minimalSection = `
     <div class="price-intel-minimal">
-      <span class="current-price">${escapeHtml(inr(currentPrice))}</span>
+      <span class="current-price">${escapePriceIntelHtml(inr(currentPrice))}</span>
     </div>
   `;
   priceIntelSection.innerHTML = minimalSection;
@@ -220,18 +220,18 @@ function updateComparisonList(comparisonData) {
 
   rows.slice(0, 5).forEach((result) => {
     const platformKey = String(result.platform || result.source || 'unknown').toLowerCase();
-    const platform = escapeHtml(platformKey || 'unknown');
+    const platform = escapePriceIntelHtml(platformKey || 'unknown');
     const rawPrice = num(result.price ?? result.offer_price, NaN);
     const hasPrice = Number.isFinite(rawPrice) && rawPrice > 0;
     const isUnavailable = !hasPrice || String(result.status || '').toUpperCase() === 'UNAVAILABLE';
     const displayCfg = PLATFORM_DISPLAY[platformKey] || null;
 
     const price = isUnavailable
-      ? escapeHtml(displayCfg?.unavailableMessage || 'Unavailable')
-      : escapeHtml(inr(rawPrice));
-    const confidence = escapeHtml(String(result.confidence || 'low').toLowerCase());
+      ? escapePriceIntelHtml(displayCfg?.unavailableMessage || 'Unavailable')
+      : escapePriceIntelHtml(inr(rawPrice));
+    const confidence = escapePriceIntelHtml(String(result.confidence || 'low').toLowerCase());
     const isCheaper = Boolean(result.isCheaper ?? result.is_cheaper);
-    const savings = escapeHtml(inr(result.savings ?? result.saving_amount ?? 0));
+    const savings = escapePriceIntelHtml(inr(result.savings ?? result.saving_amount ?? 0));
 
     const row = document.createElement('div');
     row.className = 'comparison-row';
@@ -317,19 +317,19 @@ function buildPriceHistoryHTML(priceIntelSection, productId, currentPrice, produ
   const section = `
     <div class="price-intel-section" id="price-history-card">
       <header>
-        <span class="current-price">${escapeHtml(inr(currentPrice))}</span>
-        <span class="deal-indicator">${escapeHtml(dealIndicator)}</span>
+        <span class="current-price">${escapePriceIntelHtml(inr(currentPrice))}</span>
+        <span class="deal-indicator">${escapePriceIntelHtml(dealIndicator)}</span>
         <button class="chevron-toggle" type="button">▼</button>
       </header>
       <div class="content" style="display:none;">
         <h2>15-Day Price History</h2>
         <div class="sparkline-container"></div>
         <div class="stats">
-          <span>Low ${escapeHtml(inr(low))}</span>
-          <span>High ${escapeHtml(inr(high))}</span>
+          <span>Low ${escapePriceIntelHtml(inr(low))}</span>
+          <span>High ${escapePriceIntelHtml(inr(high))}</span>
         </div>
-        <div class="deal-banner" style="background-color: ${getDealBannerColor(dealIndicator)};">${escapeHtml(dealIndicator)}</div>
-        <span class="confidence-label">Confidence (${escapeHtml(String(confidence))} observations)</span>
+        <div class="deal-banner" style="background-color: ${getDealBannerColor(dealIndicator)};">${escapePriceIntelHtml(dealIndicator)}</div>
+        <span class="confidence-label">Confidence (${escapePriceIntelHtml(String(confidence))} observations)</span>
       </div>
     </div>
 
@@ -408,7 +408,7 @@ async function loadPriceIntel(productId, platform, currentPrice, productData) {
   ensureSectionStyles();
   window.TruvakSidebar.showSectionLoading('price-intel');
 
-  const apiBase = getApiBaseUrl();
+  const apiBase = getPriceIntelApiBaseUrl();
   const safePrice = num(currentPrice, 0);
   const safePlatform = String(platform || '').toLowerCase();
 
@@ -480,7 +480,7 @@ async function addToWatchlist(productId, platform, name, url, price) {
   localStorage.setItem(WATCHLIST_KEY, JSON.stringify(existingWatchlist));
 
   try {
-    const response = await fetch(`${getApiBaseUrl()}/v1/customer/watchlist`, {
+    const response = await fetch(`${getPriceIntelApiBaseUrl()}/v1/customer/watchlist`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -530,3 +530,4 @@ window.TruvakPriceIntel = {
   addToWatchlist,
   updateComparisonList,
 };
+

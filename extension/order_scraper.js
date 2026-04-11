@@ -1,4 +1,4 @@
-const STORAGE_KEY_PREFIX = 'truvak_order_';
+const ORDER_STORAGE_KEY_PREFIX = 'truvak_order_';
 const ORDER_SYNC_BATCH_SIZE = 50;
 const COMPARISON_CACHE_KEY = 'truvak_price_comparison_cache_v1';
 
@@ -17,11 +17,11 @@ const BROWSER_HEADERS = {
   Pragma: 'no-cache',
 };
 
-function getApiBaseUrl() {
+function getOrderApiBaseUrl() {
   return window.TRUVAK_API || window.TruvakConfig?.apiUrl || 'http://127.0.0.1:8000';
 }
 
-function cleanText(value) {
+function cleanOrderText(value) {
   return String(value || '').replace(/\s+/g, ' ').trim();
 }
 
@@ -59,17 +59,17 @@ function setComparisonCache(cache) {
 }
 
 function getCacheKey(platform, query) {
-  return `${String(platform || '').toLowerCase()}::${cleanText(query).toLowerCase()}`;
+  return `${String(platform || '').toLowerCase()}::${cleanOrderText(query).toLowerCase()}`;
 }
 
 function parseAmount(value) {
-  const normalized = cleanText(value).replace(/[^0-9.]/g, '');
+  const normalized = cleanOrderText(value).replace(/[^0-9.]/g, '');
   const parsed = Number.parseFloat(normalized);
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function inferCategoryFromTitle(title) {
-  const lowered = cleanText(title).toLowerCase();
+  const lowered = cleanOrderText(title).toLowerCase();
   if (!lowered) return 'uncategorized';
 
   if (lowered.includes('electronics')) return 'electronics';
@@ -87,7 +87,7 @@ function inferCategoryFromTitle(title) {
 }
 
 function parseAmazonOrderDate(raw) {
-  const text = cleanText(raw).replace(',', '');
+  const text = cleanOrderText(raw).replace(',', '');
   if (!text) return null;
 
   const normalized = text.replace(/\s+/g, ' ');
@@ -130,7 +130,7 @@ function parseAmazonOrderDate(raw) {
 }
 
 function parseFlipkartOrderDate(raw) {
-  const text = cleanText(raw);
+  const text = cleanOrderText(raw);
   if (!text) return null;
 
   const direct = new Date(text);
@@ -158,7 +158,7 @@ async function sha256Hex(input) {
 }
 
 function normalizeOrderStatus(raw) {
-  const status = cleanText(raw).toLowerCase();
+  const status = cleanOrderText(raw).toLowerCase();
   if (status.includes('delivered')) return 'delivered';
   if (status.includes('cancelled') || status.includes('canceled')) return 'cancelled';
   if (status.includes('returned') || status.includes('return')) return 'returned';
@@ -166,13 +166,13 @@ function normalizeOrderStatus(raw) {
 }
 
 function getSafeText(root, selector) {
-  return cleanText(root.querySelector(selector)?.textContent || '');
+  return cleanOrderText(root.querySelector(selector)?.textContent || '');
 }
 
 function getAmazonProductCategory(row) {
   const breadcrumbItems = row.querySelectorAll('.a-breadcrumb-item span');
   if (breadcrumbItems.length >= 3) {
-    return cleanText(breadcrumbItems[2].textContent).toLowerCase() || 'uncategorized';
+    return cleanOrderText(breadcrumbItems[2].textContent).toLowerCase() || 'uncategorized';
   }
 
   const title = getSafeText(row, 'h3.a-size-mini, .yohtmlc-product-title, .a-size-base-plus');
@@ -182,7 +182,7 @@ function getAmazonProductCategory(row) {
 function getFlipkartProductCategory(row) {
   const breadcrumbItems = row.querySelectorAll('._2aKgVJ, ._1R0K0g');
   if (breadcrumbItems.length >= 2) {
-    return cleanText(breadcrumbItems[1].textContent).toLowerCase() || 'uncategorized';
+    return cleanOrderText(breadcrumbItems[1].textContent).toLowerCase() || 'uncategorized';
   }
 
   const title = getSafeText(row, '._3YIyXj, .s1Q9rs, .KzDlHZ');
@@ -293,14 +293,14 @@ function buildSearchQuery(productData, priority) {
   if (!productData) return '';
 
   if (priority === 'EAN') {
-    return cleanText(productData.ean || '');
+    return cleanOrderText(productData.ean || '');
   }
 
   if (priority === 'Model') {
-    return cleanText(`${productData.brand || ''} ${productData.model_number || ''}`);
+    return cleanOrderText(`${productData.brand || ''} ${productData.model_number || ''}`);
   }
 
-  const words = cleanText(productData.title || '')
+  const words = cleanOrderText(productData.title || '')
     .split(' ')
     .filter((word) => word && !['with', 'for', 'and', 'the', 'in'].includes(word.toLowerCase()));
   return words.slice(0, 6).join(' ');
@@ -619,7 +619,7 @@ async function runOrderScraper(platform) {
   }
 
   try {
-    localStorage.setItem(`${STORAGE_KEY_PREFIX}last_count_${normalizedPlatform}`, String(orders.length));
+    localStorage.setItem(`${ORDER_STORAGE_KEY_PREFIX}last_count_${normalizedPlatform}`, String(orders.length));
   } catch {
     // Ignore storage write failures.
   }
@@ -635,7 +635,7 @@ async function runOrderScraper(platform) {
   }
 
   let syncedOrders = 0;
-  const apiBase = getApiBaseUrl();
+  const apiBase = getOrderApiBaseUrl();
 
   for (let i = 0; i < totalOrders; i += ORDER_SYNC_BATCH_SIZE) {
     const batch = orders.slice(i, i + ORDER_SYNC_BATCH_SIZE);
@@ -718,3 +718,4 @@ window.TruvakOrderScraper = {
   mapOrderToProductData,
   runOrderScraper,
 };
+

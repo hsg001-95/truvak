@@ -3,8 +3,8 @@
 
 const TIP_CONFIG = {
   apiUrl:     'http://127.0.0.1:8000',
-  merchantId: 'merchant-amazon',
-  dashboardUrl: 'http://localhost:8501',
+  merchantId: 'merchant_amazon',
+  dashboardUrl: 'http://localhost:5174',
 };
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -18,6 +18,26 @@ let lastSummaryAt     = 0;
 let currentViewMode   = 'init';
 let extensionEnabled  = true;
 let lastBestsellerBootstrapAt = 0;
+let lastScoreAttemptAt = 0;
+let lastScoreErrorAt = 0;
+let consecutiveScoreErrors = 0;
+let lastFailedOrderFingerprint = null;
+let lastRouteSignature = '';
+let scanIntervalId = null;
+
+const SCORE_RETRY_BASE_MS = 5000;
+const SCORE_RETRY_MAX_MS = 30000;
+
+function buildOrderFingerprint(orderData) {
+  if (!orderData) return '';
+  return [
+    orderData.order_id,
+    orderData.pin_code,
+    orderData.order_value,
+    orderData.is_cod,
+    orderData.item_count,
+  ].join('|');
+}
 
 // ── Site config — universal pattern matching ──────────────────────────────────
 const SITE_CONFIGS = {
@@ -41,14 +61,34 @@ function getDefaultMerchantIdByHost() {
   const host = window.location.hostname;
 
   if (host.includes('seller.flipkart')) {
-    return 'merchant-flipkart';
+    return 'merchant_flipkart';
   }
 
   if (host.includes('localhost') || host.includes('127.0.0.1')) {
-    return 'merchant-local';
+    return 'merchant_amazon';
   }
 
-  return 'merchant-amazon';
+  return 'merchant_amazon';
+}
+
+function normalizeMerchantId(merchantId) {
+  const value = String(merchantId || '').trim();
+  if (!value) return 'merchant_amazon';
+  if (value === 'merchant-amazon') return 'merchant_amazon';
+  if (value === 'merchant-flipkart') return 'merchant_flipkart';
+  if (value === 'merchant-local' || value === 'merchant_local') return 'merchant_amazon';
+  return value;
+}
+
+function resolveOrderScore(order) {
+  const parsed = Number(order?.score);
+  if (Number.isFinite(parsed)) return parsed;
+
+  const risk = String(order?.risk_level || '').toUpperCase();
+  if (risk === 'HIGH') return 20;
+  if (risk === 'MEDIUM') return 50;
+  if (risk === 'LOW') return 80;
+  return 50;
 }
 
 async function initCustomerCaptchaRecovery(config) {
@@ -107,8 +147,18 @@ async function init() {
   injectSidebarStyles();
   injectSidebar(config.platform);
   observePageChanges();
+  startScanHeartbeat();
 
   setTimeout(tryExtractAndScore, 900);
+}
+
+function startScanHeartbeat() {
+  if (scanIntervalId) return;
+  scanIntervalId = setInterval(() => {
+    tryExtractAndScore().catch(() => {
+      // Errors are surfaced by state rendering; keep heartbeat alive.
+    });
+  }, 3000);
 }
 
 async function loadRuntimeConfig() {
@@ -116,7 +166,7 @@ async function loadRuntimeConfig() {
 
   const cfg = await new Promise((resolve) => {
     chrome.storage.local.get(
-      ['apiUrl', 'merchantId', 'extensionEnabled'],
+      ['apiUrl', 'merchantId', 'dashboardUrl', 'extensionEnabled'],
       resolve
     );
   });
@@ -126,8 +176,12 @@ async function loadRuntimeConfig() {
 
   TIP_CONFIG.merchantId = getDefaultMerchantIdByHost();
   TIP_CONFIG.apiUrl = cfg.apiUrl || TIP_CONFIG.apiUrl;
+  TIP_CONFIG.dashboardUrl = cfg.dashboardUrl || TIP_CONFIG.dashboardUrl;
+  if (typeof TIP_CONFIG.dashboardUrl === 'string' && TIP_CONFIG.dashboardUrl.includes(':5173')) {
+    TIP_CONFIG.dashboardUrl = 'http://localhost:5174';
+  }
   if (isLocalHost && cfg.merchantId) {
-    TIP_CONFIG.merchantId = cfg.merchantId;
+    TIP_CONFIG.merchantId = normalizeMerchantId(cfg.merchantId);
   }
   extensionEnabled = typeof cfg.extensionEnabled === 'boolean'
     ? cfg.extensionEnabled
@@ -996,6 +1050,18 @@ function injectSidebar(platformName) {
     }
   };
 
+  const openDashboard = () => {
+    if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+      chrome.runtime.sendMessage({ type: 'OPEN_DASHBOARD', url: TIP_CONFIG.dashboardUrl }, () => {
+        if (chrome.runtime.lastError) {
+          window.open(TIP_CONFIG.dashboardUrl, '_blank');
+        }
+      });
+      return;
+    }
+    window.open(TIP_CONFIG.dashboardUrl, '_blank');
+  };
+
   document.getElementById('tip-collapse-btn').addEventListener('click', () => {
     const sidebar = document.getElementById('tip-sidebar');
     if (sidebar) sidebar.style.display = 'none';
@@ -1003,24 +1069,24 @@ function injectSidebar(platformName) {
   });
 
   document.getElementById('tip-nav-score').addEventListener('click', () => {
-    window.open(TIP_CONFIG.dashboardUrl, '_blank');
+    openDashboard();
   });
 
   document.getElementById('tip-nav-history').addEventListener('click', () => {
-    window.open(TIP_CONFIG.dashboardUrl, '_blank');
+    openDashboard();
   });
 
   document.getElementById('tip-settings-btn').addEventListener('click', () => {
-    window.open(TIP_CONFIG.dashboardUrl, '_blank');
+    openDashboard();
   });
 
   document.getElementById('tip-support-btn').addEventListener('click', () => {
-    window.open(TIP_CONFIG.dashboardUrl, '_blank');
+    openDashboard();
   });
 
   document.getElementById('tip-open-dashboard').addEventListener('click', (e) => {
     e.preventDefault();
-    window.open(TIP_CONFIG.dashboardUrl, '_blank');
+    openDashboard();
   });
 
   document.getElementById('tip-buyer-head').addEventListener('click', () => {
@@ -1072,14 +1138,74 @@ function toggleSidebar() {
 // ── MutationObserver ──────────────────────────────────────────────────────────
 function observePageChanges() {
   let timer;
-  new MutationObserver(() => {
+  new MutationObserver((mutations) => {
+    if (mutations.length && mutations.every(isTipOwnedMutation)) return;
     clearTimeout(timer);
     timer = setTimeout(tryExtractAndScore, 1200);
   }).observe(document.body, { childList: true, subtree: true });
 }
 
+function isTipOwnedMutation(mutation) {
+  const tipSidebar = document.getElementById('tip-sidebar');
+  if (!tipSidebar) return false;
+
+  const isTipNode = (node) => {
+    if (!(node instanceof HTMLElement)) return true;
+    if (node.id && node.id.startsWith('tip-')) return true;
+    return Boolean(node.closest('#tip-sidebar'));
+  };
+
+  if (mutation.target instanceof HTMLElement && mutation.target.closest('#tip-sidebar')) {
+    return true;
+  }
+
+  for (const node of mutation.addedNodes) {
+    if (!isTipNode(node)) return false;
+  }
+
+  for (const node of mutation.removedNodes) {
+    if (!isTipNode(node)) return false;
+  }
+
+  return true;
+}
+
+function getScoreRetryDelayMs() {
+  const attempts = Math.max(1, consecutiveScoreErrors);
+  return Math.min(SCORE_RETRY_BASE_MS * attempts, SCORE_RETRY_MAX_MS);
+}
+
+function isElementVisible(element) {
+  if (!element) return false;
+  const style = window.getComputedStyle(element);
+  if (style.display === 'none' || style.visibility === 'hidden') return false;
+  return element.offsetParent !== null || style.position === 'fixed';
+}
+
 function isOrderDetailUrl(url = window.location.href) {
+  const orderDetailPage = document.getElementById('order-detail-page');
+  const mockOrderDetailActive = Boolean(
+    orderDetailPage &&
+    orderDetailPage.classList.contains('active') &&
+    isElementVisible(orderDetailPage)
+  );
+
+  const hasVisibleMockOrderHeading = Boolean(
+    orderDetailPage &&
+    isElementVisible(orderDetailPage) &&
+    /order\s+details/i.test(
+      orderDetailPage.querySelector('h1, h2')?.textContent || ''
+    )
+  );
+
+  const hasVisiblePageOrderHeading = /order\s+details/i.test(
+    document.querySelector('main h1, main h2, h1, h2')?.textContent || ''
+  );
+
   return (
+    mockOrderDetailActive ||
+    hasVisibleMockOrderHeading ||
+    hasVisiblePageOrderHeading ||
     url.includes('/order-detail') ||
     url.includes('orderID=') ||
     url.includes('/orders/') ||
@@ -1272,21 +1398,45 @@ async function handleBestsellerBootstrap() {
 function extractOrderData() {
   const text = document.body.innerText || '';
   const url  = window.location.href;
+  const host = window.location.hostname;
 
   // Detect order detail page specifically
   const isOrderDetailPage = isOrderDetailUrl(url);
   if (!isOrderDetailPage) return null;
 
+  // Prefer deterministic selectors on local mock pages.
+  let orderIdFromDom = null;
+  if (host.includes('localhost') || host.includes('127.0.0.1')) {
+    const detailOrderIdText = document.getElementById('detail-order-id')?.textContent || '';
+    const detailOrderMatch = detailOrderIdText.match(/Order\s*ID\s*:\s*(\S+)/i);
+    if (detailOrderMatch?.[1]) {
+      orderIdFromDom = detailOrderMatch[1].trim();
+    }
+  }
+
   // Order ID
   let orderId = null;
   const amzMatch = text.match(/\d{3}-\d{7}-\d{7}/);
   const fkMatch  = text.match(/\bOD-?[A-Z0-9]{10,}\b/i);
-  if (amzMatch) orderId = amzMatch[0];
+  const genericMatch = text.match(/Order\s*ID\s*:\s*([A-Z0-9\-_]{4,})/i);
+  if (orderIdFromDom) orderId = orderIdFromDom;
+  else if (amzMatch) orderId = amzMatch[0];
   else if (fkMatch) orderId = fkMatch[0];
+  else if (genericMatch?.[1]) orderId = genericMatch[1];
   if (!orderId) return null;
 
   // Order value — look for Rs/INR patterns near total keywords first
   let orderValue = 1000;
+  if (host.includes('localhost') || host.includes('127.0.0.1')) {
+    const detailTotalText = document.getElementById('detail-total')?.textContent || '';
+    const totalMatch = detailTotalText.match(/([0-9,]+(?:\.[0-9]+)?)/);
+    if (totalMatch?.[1]) {
+      const parsed = parseFloat(totalMatch[1].replace(/,/g, ''));
+      if (parsed > 0 && parsed < 200000) {
+        orderValue = parsed;
+      }
+    }
+  }
   const valuePatterns = [
     /(?:Order Total|Grand Total|Total Amount)[^\n]*?₹\s*([0-9,]+)/i,
     /(?:Order Total|Grand Total|Total Amount)[^\n]*?Rs\.?\s*([0-9,]+)/i,
@@ -1305,6 +1455,13 @@ function extractOrderData() {
 
   // PIN code — search near address block to avoid false matches
   let pinCode = '110001';
+  if (host.includes('localhost') || host.includes('127.0.0.1')) {
+    const detailPinText = document.getElementById('detail-pin')?.textContent || '';
+    const pinMatch = detailPinText.match(/\b([1-9][0-9]{5})\b/);
+    if (pinMatch?.[1]) {
+      pinCode = pinMatch[1];
+    }
+  }
   const addressSection = text.match(
     /(?:ship to|shipping address|deliver to|delivery address)([\s\S]{0,400})/i
   );
@@ -1323,11 +1480,18 @@ function extractOrderData() {
     /(?:payment method|payment type|pay with|paid via)([\s\S]{0,200})/i
   );
   const payText = paymentSection ? paymentSection[1].toLowerCase() : '';
-  const isCod = (
+  let isCod = (
     /cash on delivery|cod|pay on delivery/.test(payText) ||
     (/cash on delivery|pay on delivery/i.test(text) &&
       !(/paid|prepaid|upi|card|netbanking/i.test(payText)))
   ) ? 1 : 0;
+
+  if (host.includes('localhost') || host.includes('127.0.0.1')) {
+    const paymentMethodText = (document.getElementById('detail-payment-method')?.textContent || '').toLowerCase();
+    if (paymentMethodText) {
+      isCod = /cash on delivery|\bcod\b/.test(paymentMethodText) ? 1 : 0;
+    }
+  }
 
   // Buyer identifier
   let buyerId = orderId;
@@ -1383,6 +1547,19 @@ async function getAreaIntelligence(pinCode) {
 async function tryExtractAndScore() {
   if (!extensionEnabled) return;
 
+  const routeSignature = `${window.location.href}|${Boolean(document.getElementById('order-detail-page')?.classList.contains('active'))}`;
+  if (routeSignature !== lastRouteSignature) {
+    lastRouteSignature = routeSignature;
+    if (!isScoringInFlight) {
+      // Route/view transition in SPA: clear stale lock state so scoring can re-evaluate.
+      currentOrderId = null;
+      lastFailedOrderFingerprint = null;
+      consecutiveScoreErrors = 0;
+      lastScoreErrorAt = 0;
+      lastScoreAttemptAt = 0;
+    }
+  }
+
   if (!isLoggedInSellerPage()) {
     currentOrderId = null;
     currentHashedId = null;
@@ -1391,6 +1568,7 @@ async function tryExtractAndScore() {
 
   const onOrderUrl = isOrderDetailUrl();
   const orderData = extractOrderData();
+  const orderFingerprint = buildOrderFingerprint(orderData);
 
   if (!orderData) {
     currentOrderId = null;
@@ -1398,7 +1576,7 @@ async function tryExtractAndScore() {
 
     if (onOrderUrl) {
       if (currentViewMode !== 'order-detecting') {
-        showLoading('order details');
+        showLoading('------');
         currentViewMode = 'order-detecting';
       }
       return;
@@ -1411,10 +1589,28 @@ async function tryExtractAndScore() {
   if (isScoringInFlight) return;
   if (orderData.order_id === currentOrderId && currentViewMode === 'order') return;
 
+  const now = Date.now();
+  if (orderData.order_id === currentOrderId) {
+    if (currentViewMode === 'error' && orderFingerprint && orderFingerprint === lastFailedOrderFingerprint) {
+      return;
+    }
+    if (currentViewMode === 'error' && now - lastScoreErrorAt < getScoreRetryDelayMs()) {
+      return;
+    }
+    if (now - lastScoreAttemptAt < 2500) {
+      return;
+    }
+  } else {
+    consecutiveScoreErrors = 0;
+    lastScoreErrorAt = 0;
+    lastFailedOrderFingerprint = null;
+  }
+
   currentOrderId = orderData.order_id;
   showLoading(orderData.order_id);
   currentViewMode = 'order-loading';
   isScoringInFlight = true;
+  lastScoreAttemptAt = now;
 
   try {
     const [scoreResult, areaResult] = await Promise.all([
@@ -1426,7 +1622,13 @@ async function tryExtractAndScore() {
     const historyResult = await getBuyerHistory(currentHashedId);
     renderSidebar(scoreResult, historyResult, areaResult, orderData);
     currentViewMode = 'order';
+    consecutiveScoreErrors = 0;
+    lastScoreErrorAt = 0;
+    lastFailedOrderFingerprint = null;
   } catch (err) {
+    consecutiveScoreErrors += 1;
+    lastScoreErrorAt = Date.now();
+    lastFailedOrderFingerprint = orderFingerprint;
     showError(err.message);
     currentViewMode = 'error';
   } finally {
@@ -1441,6 +1643,11 @@ async function showMerchantSummary() {
   const factorIdentity = document.getElementById('tip-factor-identity');
   const factorAddress = document.getElementById('tip-factor-address');
   const factorRto = document.getElementById('tip-factor-rto');
+  const buyerTotalNode = document.getElementById('tip-metric-total');
+  const buyerRtoNode = document.getElementById('tip-metric-rto');
+  const buyerAvgNode = document.getElementById('tip-metric-avg');
+  const buyerFirstNode = document.getElementById('tip-metric-first');
+  const riskChip = document.getElementById('tip-risk-chip');
   const pinNode = document.getElementById('tip-pin-code');
   const liveText = document.getElementById('tip-live-text');
   const liveDot = document.getElementById('tip-live-dot');
@@ -1454,7 +1661,7 @@ async function showMerchantSummary() {
   const coordsNode = document.getElementById('tip-coords');
   const skeleton = document.getElementById('tip-skeleton');
 
-  if (!scoreValue || !scoreRing || !flagText || !factorIdentity || !factorAddress || !factorRto || !pinNode || !liveText || !liveDot || !tierNode || !rtoNode || !codNode || !districtNode || !internetNode || !urbanNode || !electricNode || !coordsNode || !skeleton) {
+  if (!scoreValue || !scoreRing || !flagText || !factorIdentity || !factorAddress || !factorRto || !buyerTotalNode || !buyerRtoNode || !buyerAvgNode || !buyerFirstNode || !riskChip || !pinNode || !liveText || !liveDot || !tierNode || !rtoNode || !codNode || !districtNode || !internetNode || !urbanNode || !electricNode || !coordsNode || !skeleton) {
     return;
   }
 
@@ -1475,6 +1682,7 @@ async function showMerchantSummary() {
   pinNode.textContent = '------';
   liveText.textContent = 'Syncing';
   liveDot.style.background = '#ffba42';
+  liveDot.style.animation = 'tipPulse 1.8s infinite';
   tierNode.textContent = '--';
   rtoNode.textContent = '--';
   codNode.textContent = '--';
@@ -1495,23 +1703,32 @@ async function showMerchantSummary() {
     if (orders.length === 0) {
       scoreValue.textContent = '--';
       scoreRing.style.strokeDashoffset = '175.9';
-      flagText.textContent = 'Open order to score';
+      flagText.textContent = 'Awaiting order';
+      buyerTotalNode.textContent = '0';
+      buyerRtoNode.textContent = '0';
+      buyerAvgNode.textContent = '--';
+      buyerFirstNode.textContent = 'New';
+      riskChip.textContent = 'Low Risk';
+      riskChip.style.color = '#4ade80';
       liveText.textContent = 'Idle';
       liveDot.style.background = '#8b919d';
+      liveDot.style.animation = 'none';
       tierNode.textContent = 'Waiting';
       rtoNode.textContent = '--';
       codNode.textContent = '--';
       districtNode.textContent = 'Open order';
       skeleton.style.display = 'none';
+      currentViewMode = 'summary';
       return;
     }
 
     const total = orders.length;
-    const avgScoreRaw = orders.reduce((sum, o) => sum + (o.score || 0), 0) / total;
+    const avgScoreRaw = orders.reduce((sum, o) => sum + resolveOrderScore(o), 0) / total;
     const avgScore = Math.round(avgScoreRaw);
     const avgRto = Math.max(1, Math.min(35, Math.round(orders.filter((o) => o.risk_level === 'HIGH').length / total * 100)));
     const codOrders = orders.filter((o) => o.is_cod === 1).length;
     const codPct = Math.round((codOrders / total) * 100);
+    const highRiskOrders = orders.filter((o) => o.risk_level === 'HIGH').length;
 
     scoreValue.textContent = String(avgScore);
     scoreRing.style.stroke = avgScore >= 70 ? '#3FB950' : avgScore >= 40 ? '#ffba42' : '#f87171';
@@ -1522,10 +1739,17 @@ async function showMerchantSummary() {
     factorAddress.textContent = avgRto <= 15 ? 'Strong' : avgRto <= 25 ? 'Moderate' : 'Weak';
     factorAddress.style.color = avgRto <= 15 ? '#4ade80' : avgRto <= 25 ? '#ffba42' : '#f87171';
     factorRto.textContent = avgRto <= 15 ? 'None Found' : `${avgRto}% corridor risk`;
+    buyerTotalNode.textContent = String(total);
+    buyerRtoNode.textContent = String(highRiskOrders);
+    buyerAvgNode.textContent = String(avgScore);
+    buyerFirstNode.textContent = total > 1 ? 'History' : 'New';
+    riskChip.textContent = avgScore >= 70 ? 'Low Risk' : avgScore >= 40 ? 'Medium Risk' : 'High Risk';
+    riskChip.style.color = avgScore >= 70 ? '#4ade80' : avgScore >= 40 ? '#ffba42' : '#f87171';
 
     pinNode.textContent = 'LIVE-DATA';
     liveText.textContent = 'Live';
     liveDot.style.background = '#58a6ff';
+    liveDot.style.animation = 'tipPulse 1.8s infinite';
     tierNode.textContent = 'Merchant';
     rtoNode.textContent = `${avgRto}%`;
     codNode.textContent = `${codPct}%`;
@@ -1545,6 +1769,7 @@ async function showMerchantSummary() {
     factorRto.textContent = 'Unavailable';
     liveText.textContent = 'Offline';
     liveDot.style.background = '#ffb4ab';
+    liveDot.style.animation = 'none';
     districtNode.textContent = 'Backend unavailable';
     skeleton.style.display = 'none';
     currentViewMode = 'summary';
@@ -1579,6 +1804,7 @@ function showLoading(orderId) {
   pinNode.textContent = String(orderId).slice(-6);
   liveText.textContent = 'Syncing';
   liveDot.style.background = '#ffba42';
+  liveDot.style.animation = 'tipPulse 1.8s infinite';
   districtNode.textContent = 'Scoring area';
   skeleton.style.display = 'flex';
 }
@@ -1606,6 +1832,7 @@ function showError(msg) {
 
   liveText.textContent = 'Error';
   liveDot.style.background = '#ffb4ab';
+  liveDot.style.animation = 'none';
   districtNode.textContent = `Error: ${msg}`;
   skeleton.style.display = 'none';
 }
@@ -1682,6 +1909,7 @@ function renderSidebar(score, history, area, orderData) {
   pinNode.textContent = String(pin);
   liveText.textContent = 'Live';
   liveDot.style.background = '#58a6ff';
+  liveDot.style.animation = 'tipPulse 1.8s infinite';
   tierNode.textContent = tier;
   rtoNode.textContent = rto;
   codNode.textContent = cod;
