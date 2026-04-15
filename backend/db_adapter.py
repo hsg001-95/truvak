@@ -17,8 +17,8 @@ logger = logging.getLogger("truvak.db")
 _DEFAULT_SQLITE_PATH = Path(__file__).resolve().parents[1] / "data" / "trust.db"
 _DATABASE_URL = (os.getenv("DATABASE_URL") or "sqlite:///data/trust.db").strip()
 _POOL_MIN = int(os.getenv("DB_POOL_MIN", "2"))
-_POOL_MAX = int(os.getenv("DB_POOL_MAX", "10"))
-_POOL_GET_TIMEOUT_MS = int(os.getenv("DB_POOL_GET_TIMEOUT_MS", "3000"))
+_POOL_MAX = int(os.getenv("DB_POOL_MAX", "20"))
+_POOL_GET_TIMEOUT_MS = int(os.getenv("DB_POOL_GET_TIMEOUT_MS", "10000"))
 _POOL_GET_RETRY_MS = int(os.getenv("DB_POOL_GET_RETRY_MS", "50"))
 
 _pool_lock = threading.Lock()
@@ -170,14 +170,18 @@ def get_connection():
                 break
             except Exception as exc:
                 err_text = str(exc).lower()
-                if "pool exhausted" in err_text and time.monotonic() < deadline:
+                should_retry = time.monotonic() < deadline
+
+                if "pool exhausted" in err_text:
+                    with _metrics_lock:
+                        _pool_exhausted_count += 1
+
+                if should_retry:
                     with _metrics_lock:
                         _pool_wait_count += 1
                     time.sleep(max(1, _POOL_GET_RETRY_MS) / 1000.0)
                     continue
-                if "pool exhausted" in err_text:
-                    with _metrics_lock:
-                        _pool_exhausted_count += 1
+
                 logger.error("Failed to checkout PostgreSQL connection: %s", exc)
                 raise
 

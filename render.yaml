@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: truvak-api
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: CUSTOMER_SALT
+        sync: false
+      - key: EXTENSION_ORIGIN
+        sync: false
+      - key: CORS_ALLOW_ORIGINS
+        sync: false

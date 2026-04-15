@@ -59,6 +59,7 @@ const MERCHANT_URL_PATTERNS = [
 const WATCHLIST_ALARM_NAME = 'truvakPriceCheck';
 const WATCHLIST_PERIOD_MINUTES = 360;
 const WATCHLIST_API_BASE = 'https://api.truvak.com';
+const API_BASE = WATCHLIST_API_BASE;
 const notificationActionMap = new Map();
 
 function detectPageMode(url) {
@@ -373,7 +374,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return;
     }
 
-    fetch('http://127.0.0.1:8000/v1/product/bestseller-batch', {
+    fetch(`${API_BASE}/v1/product/bestseller-batch`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

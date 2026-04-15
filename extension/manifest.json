@@ -14,6 +14,7 @@
   "host_permissions": [
     "http://127.0.0.1:8000/*",
     "http://localhost:8000/*",
+    "https://*.onrender.com/*",
     "https://api.truvak.com/*",
     "https://sellercentral.amazon.in/*",
     "https://sellercentral.amazon.com/*",

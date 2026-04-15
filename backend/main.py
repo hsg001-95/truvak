@@ -76,6 +76,11 @@ app = FastAPI(
 )
 
 EXTENSION_ORIGIN = os.getenv("EXTENSION_ORIGIN", "").strip()
+EXTRA_CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CORS_ALLOW_ORIGINS", "").split(",")
+    if origin.strip()
+]
 
 allow_origins = [
     "http://127.0.0.1:8080",
@@ -93,6 +98,8 @@ allow_origins = [
 
 if EXTENSION_ORIGIN.startswith("chrome-extension://"):
     allow_origins.append(EXTENSION_ORIGIN)
+
+allow_origins.extend(EXTRA_CORS_ORIGINS)
 
 app.add_middleware(
     CORSMiddleware,
@@ -219,6 +226,62 @@ def _outcomes_parts():
         "buyer_col": buyer_col,
         "order_by": order_by_sql,
     }
+
+
+def _orders_created_candidates(order_cols):
+    candidates = []
+    if "created_at" in order_cols:
+        candidates.append("o.created_at")
+    if "order_date" in order_cols:
+        candidates.append("o.order_date")
+    return candidates
+
+
+def _ts_created_expr(trust_cols, order_cols):
+    candidates = []
+    if "created_at" in trust_cols:
+        candidates.append("ts.created_at")
+    candidates.extend(_orders_created_candidates(order_cols))
+    candidates.append("CURRENT_TIMESTAMP")
+    return f"COALESCE({', '.join(candidates)})"
+
+
+def _ts_order_by_sql(trust_cols):
+    if "created_at" in trust_cols:
+        return "ts.created_at DESC"
+    if "id" in trust_cols:
+        return "ts.id DESC"
+    return "ts.order_id DESC"
+
+
+def _sync_postgres_trust_scores_sequence(cursor):
+    if not is_postgres():
+        return
+    cursor.execute(
+        """
+        SELECT setval(
+            pg_get_serial_sequence(%s, %s),
+            COALESCE((SELECT MAX(id) FROM trust_scores), 0) + 1,
+            false
+        )
+        """,
+        ("trust_scores", "id"),
+    )
+
+
+def _sync_postgres_orders_sequence(cursor):
+    if not is_postgres():
+        return
+    cursor.execute(
+        """
+        SELECT setval(
+            pg_get_serial_sequence(%s, %s),
+            COALESCE((SELECT MAX(id) FROM orders), 0) + 1,
+            false
+        )
+        """,
+        ("orders", "id"),
+    )
 
 
 @app.exception_handler(HTTPException)
@@ -648,13 +711,15 @@ def score_order(req: ScoreRequest):
     hashed = hash_buyer_id(req.raw_buyer_id, req.merchant_id)
 
     # 2. Look up buyer history from DB
-    conn = get_connection()
-    cursor = conn.cursor()
+    conn = None
+    cursor = None
     outcomes_parts = _outcomes_parts()
     result_col = outcomes_parts["result_col"]
     buyer_col = outcomes_parts["buyer_col"]
 
     try:
+        conn = get_connection()
+        cursor = conn.cursor()
         if result_col and buyer_col:
             cursor.execute(
                 adapt_query(
@@ -668,8 +733,10 @@ def score_order(req: ScoreRequest):
     except Exception:
         # If outcomes schema is drifted, do not fail scoring; treat as no previous outcomes.
         prev_outcomes = []
-    cursor.close()
-    close_connection(conn)
+    finally:
+        if cursor is not None:
+            cursor.close()
+        close_connection(conn)
 
     prev_rto  = sum(1 for r in prev_outcomes if r["result"] == "rto")
     is_first  = int(len(prev_outcomes) == 0)
@@ -701,66 +768,95 @@ def score_order(req: ScoreRequest):
     factors = build_factors(req, pin_tier, prev_rto, rto_prob)
 
     # 8. Store score in DB
-    conn = get_connection()
-    cursor = conn.cursor()
-    trust_cols = _table_columns("trust_scores")
-    trust_insert = {
-        "order_id": req.order_id,
-        "merchant_id": req.merchant_id,
-        "hashed_buyer_id": hashed,
-        "risk_level": risk_level,
-        "factors": json.dumps(factors),
-        "recommended_action": rule_result["recommended_action"],
-        "is_cod": req.is_cod,
-        "order_value": req.order_value,
-        "pin_code": req.pin_code,
-        "score": score,
-        "trust_score": score,
-        "rto_probability": rto_prob,
-    }
-    insert_cols = [c for c in trust_insert.keys() if c in trust_cols]
-    insert_vals = [trust_insert[c] for c in insert_cols]
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        if is_postgres():
+            _sync_postgres_trust_scores_sequence(cursor)
+            _sync_postgres_orders_sequence(cursor)
+        trust_cols = _table_columns("trust_scores")
+        trust_insert = {
+            "order_id": req.order_id,
+            "merchant_id": req.merchant_id,
+            "hashed_buyer_id": hashed,
+            "risk_level": risk_level,
+            "factors": json.dumps(factors),
+            "recommended_action": rule_result["recommended_action"],
+            "is_cod": req.is_cod,
+            "order_value": req.order_value,
+            "pin_code": req.pin_code,
+            "score": score,
+            "trust_score": score,
+            "rto_probability": rto_prob,
+        }
+        insert_cols = [c for c in trust_insert.keys() if c in trust_cols]
+        insert_vals = [trust_insert[c] for c in insert_cols]
 
-    if not insert_cols:
-        raise HTTPException(500, "trust_scores schema has no compatible columns")
+        if not insert_cols:
+            raise HTTPException(500, "trust_scores schema has no compatible columns")
 
-    placeholders = ",".join(["?"] * len(insert_cols))
-    cursor.execute(
-        adapt_query(
+        placeholders = ",".join(["?"] * len(insert_cols))
+        insert_sql = adapt_query(
             f"INSERT INTO trust_scores ({', '.join(insert_cols)}) VALUES ({placeholders})"
-        ),
-        tuple(insert_vals),
-    )
-
-    if is_postgres():
-        cursor.execute(
-            adapt_query(
-                """
-                INSERT INTO orders
-                (order_id, merchant_id, hashed_buyer_id,
-                 order_value, is_cod, pin_code)
-                VALUES (?,?,?,?,?,?)
-                ON CONFLICT (order_id) DO NOTHING
-                """
-            ),
-            (req.order_id, req.merchant_id, hashed, req.order_value, bool(req.is_cod), req.pin_code),
         )
-    else:
-        cursor.execute(
-            adapt_query(
-                """
-                INSERT OR IGNORE INTO orders
-                (order_id, merchant_id, hashed_buyer_id,
-                 order_value, is_cod, pin_code)
-                VALUES (?,?,?,?,?,?)
-                """
-            ),
-            (req.order_id, req.merchant_id, hashed, req.order_value, bool(req.is_cod), req.pin_code),
-        )
+        try:
+            cursor.execute(insert_sql, tuple(insert_vals))
+        except Exception as exc:
+            err_text = str(exc).lower()
+            if is_postgres() and "duplicate key value violates unique constraint \"trust_scores_pkey\"" in err_text:
+                # psycopg2 marks transaction as aborted on error; rollback before recovery queries.
+                conn.rollback()
+                cursor.close()
+                cursor = conn.cursor()
+                _sync_postgres_trust_scores_sequence(cursor)
+                cursor.execute(insert_sql, tuple(insert_vals))
+            else:
+                raise
 
-    conn.commit()
-    cursor.close()
-    close_connection(conn)
+        if is_postgres():
+            cursor.execute(
+                adapt_query(
+                    """
+                    INSERT INTO orders
+                    (order_id, merchant_id, hashed_buyer_id,
+                     order_value, is_cod, pin_code)
+                    VALUES (?,?,?,?,?,?)
+                    ON CONFLICT (order_id) DO NOTHING
+                    """
+                ),
+                (req.order_id, req.merchant_id, hashed, req.order_value, bool(req.is_cod), req.pin_code),
+            )
+        else:
+            cursor.execute(
+                adapt_query(
+                    """
+                    INSERT OR IGNORE INTO orders
+                    (order_id, merchant_id, hashed_buyer_id,
+                     order_value, is_cod, pin_code)
+                    VALUES (?,?,?,?,?,?)
+                    """
+                ),
+                (req.order_id, req.merchant_id, hashed, req.order_value, bool(req.is_cod), req.pin_code),
+            )
+
+        conn.commit()
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "DB_UNAVAILABLE",
+                "message": "Database temporarily unavailable",
+                "details": str(exc),
+            },
+        )
+    finally:
+        if cursor is not None:
+            cursor.close()
+        close_connection(conn)
 
     return ScoreResponse(
         order_id           = req.order_id,
@@ -785,21 +881,36 @@ def log_outcome(req: OutcomeRequest):
     if not result_col:
         raise HTTPException(500, "Outcomes schema missing result column")
 
-    conn   = get_connection()
-    cursor = conn.cursor()
+    conn = None
+    cursor = None
     try:
-        if buyer_col:
-            cursor.execute(
-                adapt_query(
-                    f"""
-                    INSERT INTO outcomes
-                    (order_id, merchant_id, {buyer_col}, {result_col})
-                    VALUES (?,?,?,?)
-                    """
-                ),
-                (req.order_id, req.merchant_id, hashed, req.result),
-            )
-        else:
+        conn = get_connection()
+        cursor = conn.cursor()
+        try:
+            if buyer_col:
+                cursor.execute(
+                    adapt_query(
+                        f"""
+                        INSERT INTO outcomes
+                        (order_id, merchant_id, {buyer_col}, {result_col})
+                        VALUES (?,?,?,?)
+                        """
+                    ),
+                    (req.order_id, req.merchant_id, hashed, req.result),
+                )
+            else:
+                cursor.execute(
+                    adapt_query(
+                        f"""
+                        INSERT INTO outcomes
+                        (order_id, merchant_id, {result_col})
+                        VALUES (?,?,?)
+                        """
+                    ),
+                    (req.order_id, req.merchant_id, req.result),
+                )
+        except Exception:
+            # Retry with minimal shared columns if schema differs from introspection.
             cursor.execute(
                 adapt_query(
                     f"""
@@ -810,21 +921,22 @@ def log_outcome(req: OutcomeRequest):
                 ),
                 (req.order_id, req.merchant_id, req.result),
             )
-    except Exception:
-        # Retry with minimal shared columns if schema differs from introspection.
-        cursor.execute(
-            adapt_query(
-                f"""
-                INSERT INTO outcomes
-                (order_id, merchant_id, {result_col})
-                VALUES (?,?,?)
-                """
-            ),
-            (req.order_id, req.merchant_id, req.result),
+        conn.commit()
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "DB_UNAVAILABLE",
+                "message": "Database temporarily unavailable",
+                "details": str(exc),
+            },
         )
-    conn.commit()
-    cursor.close()
-    close_connection(conn)
+    finally:
+        if cursor is not None:
+            cursor.close()
+        close_connection(conn)
     return {"status": "logged", "order_id": req.order_id, "result": req.result}
 
 @app.get("/v1/scores/{merchant_id}")
@@ -857,12 +969,8 @@ def get_scores(merchant_id: str, limit: int = 50):
         pin_candidates.append("o.pin_code")
     pin_expr = f"COALESCE({', '.join(pin_candidates)}, '------')" if pin_candidates else "'------'"
 
-    if "created_at" in trust_cols:
-        order_by_sql = "ts.created_at DESC"
-    elif "id" in trust_cols:
-        order_by_sql = "ts.id DESC"
-    else:
-        order_by_sql = "ts.order_id DESC"
+    created_expr = _ts_created_expr(trust_cols, order_cols)
+    order_by_sql = _ts_order_by_sql(trust_cols)
 
     conn = None
     cursor = None
@@ -879,7 +987,7 @@ def get_scores(merchant_id: str, limit: int = 50):
                        {is_cod_expr} AS is_cod,
                        {order_value_expr} AS order_value,
                        {pin_expr} AS pin_code,
-                       COALESCE(ts.created_at, o.created_at, CURRENT_TIMESTAMP) AS created_at
+                      {created_expr} AS created_at
                 FROM trust_scores ts
                 LEFT JOIN orders o
                        ON o.order_id = ts.order_id
@@ -892,6 +1000,15 @@ def get_scores(merchant_id: str, limit: int = 50):
             (merchant_id, limit),
         )
         rows = cursor.fetchall()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "DB_UNAVAILABLE",
+                "message": "Database temporarily unavailable",
+                "details": str(exc),
+            },
+        )
     finally:
         if cursor is not None:
             cursor.close()
@@ -1083,59 +1200,74 @@ def get_buyer_history(hashed_buyer_id: str, merchant_id: str):
         cod_candidates.append("CAST(o.is_cod AS INTEGER)")
     is_cod_expr = f"COALESCE({', '.join(cod_candidates)}, 0)" if cod_candidates else "0"
 
-    created_expr = "COALESCE(ts.created_at, o.created_at, CURRENT_TIMESTAMP)"
+    created_expr = _ts_created_expr(trust_cols, order_cols)
+    order_by_sql = _ts_order_by_sql(trust_cols)
 
-    conn = get_connection()
-    cursor = conn.cursor()
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
 
-    # All orders for this buyer under this merchant
-    cursor.execute(adapt_query("""
-        SELECT ts.order_id,
-               {score_expr} AS score,
-               {risk_expr} AS risk_level,
-               {action_expr} AS recommended_action,
-               {order_value_expr} AS order_value,
-               {is_cod_expr} AS is_cod,
-               {created_expr} AS created_at
-        FROM trust_scores ts
-        LEFT JOIN orders o
-               ON o.order_id = ts.order_id
-              AND o.merchant_id = ts.merchant_id
-        WHERE ts.hashed_buyer_id=? AND ts.merchant_id=?
-        ORDER BY ts.created_at DESC
-    """.format(
-        score_expr=score_expr,
-        risk_expr=risk_expr,
-        action_expr=action_expr,
-        order_value_expr=order_value_expr,
-        is_cod_expr=is_cod_expr,
-        created_expr=created_expr,
-    )), (hashed_buyer_id, merchant_id))
-    orders = cursor.fetchall()
+        # All orders for this buyer under this merchant
+        cursor.execute(adapt_query("""
+            SELECT ts.order_id,
+                   {score_expr} AS score,
+                   {risk_expr} AS risk_level,
+                   {action_expr} AS recommended_action,
+                   {order_value_expr} AS order_value,
+                   {is_cod_expr} AS is_cod,
+                   {created_expr} AS created_at
+            FROM trust_scores ts
+            LEFT JOIN orders o
+                   ON o.order_id = ts.order_id
+                  AND o.merchant_id = ts.merchant_id
+            WHERE ts.hashed_buyer_id=? AND ts.merchant_id=?
+            ORDER BY {order_by_sql}
+        """.format(
+            score_expr=score_expr,
+            risk_expr=risk_expr,
+            action_expr=action_expr,
+            order_value_expr=order_value_expr,
+            is_cod_expr=is_cod_expr,
+            created_expr=created_expr,
+            order_by_sql=order_by_sql,
+        )), (hashed_buyer_id, merchant_id))
+        orders = cursor.fetchall()
 
-    # Outcomes logged for this buyer
-    if result_col and buyer_col:
-        logged_sql = f"{logged_col} AS logged_at" if logged_col else "CURRENT_TIMESTAMP AS logged_at"
-        try:
-            cursor.execute(
-                adapt_query(
-                    f"""
-                    SELECT {result_col} AS result, {logged_sql}
-                    FROM outcomes
-                    WHERE {buyer_col}=? AND merchant_id=?
-                    ORDER BY {outcomes_parts['order_by']}
-                    """
-                ),
-                (hashed_buyer_id, merchant_id),
-            )
-            outcomes = cursor.fetchall()
-        except Exception:
+        # Outcomes logged for this buyer
+        if result_col and buyer_col:
+            logged_sql = f"{logged_col} AS logged_at" if logged_col else "CURRENT_TIMESTAMP AS logged_at"
+            try:
+                cursor.execute(
+                    adapt_query(
+                        f"""
+                        SELECT {result_col} AS result, {logged_sql}
+                        FROM outcomes
+                        WHERE {buyer_col}=? AND merchant_id=?
+                        ORDER BY {outcomes_parts['order_by']}
+                        """
+                    ),
+                    (hashed_buyer_id, merchant_id),
+                )
+                outcomes = cursor.fetchall()
+            except Exception:
+                outcomes = []
+        else:
             outcomes = []
-    else:
-        outcomes = []
-
-    cursor.close()
-    close_connection(conn)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "DB_UNAVAILABLE",
+                "message": "Database temporarily unavailable",
+                "details": str(exc),
+            },
+        )
+    finally:
+        if cursor is not None:
+            cursor.close()
+        close_connection(conn)
 
     # Deduplicate by order_id because rescoring the same order may write multiple rows.
     unique_orders = []
