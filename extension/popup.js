@@ -22,11 +22,17 @@ const resourceValue = document.getElementById('resourceValue');
 const orderHistory = document.getElementById('orderHistory');
 const MERCHANT_ID = localStorage.getItem('tip_merchant_id') || 'merchant_amazon';
 const savedDashboardUrl = localStorage.getItem('tip_dashboard_url');
-const DASHBOARD_URL = !savedDashboardUrl || savedDashboardUrl.includes(':8501') || savedDashboardUrl.includes(':5173')
-    ? 'http://localhost:5174'
+const shouldResetDashboardUrl =
+    !savedDashboardUrl ||
+    savedDashboardUrl.includes(':8501') ||
+    savedDashboardUrl.includes(':5174') ||
+    savedDashboardUrl.includes('merchant=merchant_combined');
+
+const DASHBOARD_URL = shouldResetDashboardUrl
+    ? 'http://127.0.0.1:5173'
     : savedDashboardUrl;
 
-if (!savedDashboardUrl || savedDashboardUrl.includes(':8501') || savedDashboardUrl.includes(':5173')) {
+if (shouldResetDashboardUrl) {
     localStorage.setItem('tip_dashboard_url', DASHBOARD_URL);
 }
 
@@ -165,16 +171,28 @@ function toggleCollapse() {
 }
 
 function openDashboard() {
+    const activeMerchantId = localStorage.getItem('tip_merchant_id') || MERCHANT_ID;
+    let targetUrl = DASHBOARD_URL;
+
+    try {
+        const url = new URL(DASHBOARD_URL);
+        url.searchParams.set('merchant', activeMerchantId);
+        targetUrl = url.toString();
+    } catch (error) {
+        // Fallback to base dashboard URL when URL parsing fails.
+        targetUrl = DASHBOARD_URL;
+    }
+
     try {
         if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.create) {
-            chrome.tabs.create({ url: DASHBOARD_URL });
+            chrome.tabs.create({ url: targetUrl });
             return;
         }
     } catch (error) {
         // Fall back to window.open if tabs API is unavailable.
     }
 
-    window.open(DASHBOARD_URL, '_blank');
+    window.open(targetUrl, '_blank');
 }
 
 function openDashboardOnKeyboard(event) {

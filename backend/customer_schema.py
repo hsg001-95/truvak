@@ -1,4 +1,4 @@
-from backend.db_adapter import get_connection, is_postgres
+from backend.db_adapter import close_connection, get_connection, is_postgres
 
 def get_customer_db_connection():
     """Returns an adapter-managed DB connection for customer auth/storage."""
@@ -135,5 +135,5 @@ def init_customer_db(conn):
 if __name__ == "__main__":
     connection = get_customer_db_connection()
     init_customer_db(connection)
-    connection.close()
+    close_connection(connection)
     print("Customer database tables and indexes initialized in trust.db.")

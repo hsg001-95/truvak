@@ -344,7 +344,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || typeof msg !== 'object') return;
 
   if (msg.type === 'OPEN_DASHBOARD') {
-    const targetUrl = String(msg.url || '').trim() || 'http://localhost:5174';
+    const targetUrl = String(msg.url || '').trim() || 'http://127.0.0.1:5173';
     chrome.tabs.create({ url: targetUrl }, () => {
       if (chrome.runtime.lastError) {
         sendResponse?.({ ok: false, reason: chrome.runtime.lastError.message });

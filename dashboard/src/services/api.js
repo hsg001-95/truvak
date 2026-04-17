@@ -23,7 +23,43 @@ const merchantCandidates = (merchantId) => {
   return [...new Set(variants.filter(Boolean))];
 };
 
+const readCachedOrders = (merchantId) => {
+  const key = `tip_cached_orders_${normalizeMerchantId(merchantId)}`;
+
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return [];
+
+    const payload = JSON.parse(raw);
+    const orders = Array.isArray(payload?.orders) ? payload.orders : [];
+    return orders;
+  } catch {
+    return [];
+  }
+};
+
+
 export const getActiveMerchantId = () => {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const fromQuery = params.get('merchant') || params.get('merchant_id');
+    if (fromQuery) {
+      const normalized = normalizeMerchantId(fromQuery);
+      if (normalized === 'merchant_combined') {
+        const fromSource = params.get('source_merchant') || params.get('source_merchant_id');
+        const sourceNormalized = normalizeMerchantId(fromSource);
+        if (sourceNormalized && sourceNormalized !== 'merchant_combined') {
+          window.localStorage.setItem('tip_merchant_id', sourceNormalized);
+          return sourceNormalized;
+        }
+      }
+      window.localStorage.setItem('tip_merchant_id', normalized);
+      return normalized;
+    }
+  } catch {
+    // Ignore malformed search params and continue with saved merchant.
+  }
+
   const saved = window.localStorage.getItem('tip_merchant_id');
   return normalizeMerchantId(saved || DEFAULT_MERCHANT_ID);
 };
@@ -88,6 +124,16 @@ export const getOrders = async (merchant_id) => {
     if (rawOrders.length > 0) {
       setActiveMerchantId(candidate);
       return rawOrders
+        .map(normalizeOrder)
+        .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+    }
+  }
+
+  for (const candidate of merchantCandidates(merchantId)) {
+    const cachedOrders = readCachedOrders(candidate);
+    if (cachedOrders.length > 0) {
+      setActiveMerchantId(candidate);
+      return cachedOrders
         .map(normalizeOrder)
         .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
     }

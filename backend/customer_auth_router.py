@@ -15,7 +15,7 @@ from google.oauth2 import id_token as google_id_token
 from google.auth.transport.requests import Request as GoogleRequest
 
 from backend.customer_schema import get_customer_db_connection
-from backend.db_adapter import adapt_query
+from backend.db_adapter import adapt_query, close_connection
 
 JWT_SECRET = os.getenv("JWT_SECRET", "truvak-dev-secret-change-in-production")
 JWT_ALGORITHM = "HS256"
@@ -185,7 +185,7 @@ async def register_customer(customer_request: CustomerRegisterRequest):
         logger.error(f"Registration error: {str(e)}")
         raise HTTPException(status_code=500, detail={"error": "Internal server error", "status_code": 500})
     finally:
-        db_connection.close()
+        close_connection(db_connection)
 
 @router.post("/v1/customer/auth/login", response_model=CustomerAuthResponse)
 async def login_customer(customer_request: CustomerLoginRequest):
@@ -216,7 +216,7 @@ async def login_customer(customer_request: CustomerLoginRequest):
             customer_id_hash=customer_id_hash,
             token=token,
             pin_code=account['pin_code'],
-            created_at=account['created_at']
+            created_at=str(account['created_at'])
         )
     except HTTPException:
         raise
@@ -224,7 +224,7 @@ async def login_customer(customer_request: CustomerLoginRequest):
         logger.error(f"Login error: {str(e)}")
         raise HTTPException(status_code=500, detail={"error": "Internal server error", "status_code": 500})
     finally:
-        db_connection.close()
+        close_connection(db_connection)
 
 
 @router.post("/v1/customer/auth/google", response_model=CustomerAuthResponse)
@@ -314,7 +314,7 @@ async def login_customer_google(request: GoogleAuthRequest):
         logger.error(f"Google login error: {str(e)}")
         raise HTTPException(status_code=500, detail={"error": "Internal server error", "status_code": 500})
     finally:
-        db_connection.close()
+        close_connection(db_connection)
 
 @router.get("/v1/customer/auth/me", response_model=CustomerAuthResponse)
 async def get_current_customer_details(customer_id_hash: str = Depends(get_current_customer)):
@@ -331,7 +331,7 @@ async def get_current_customer_details(customer_id_hash: str = Depends(get_curre
             customer_id_hash=account['customer_id_hash'],
             token="",  # Token is not returned for safety
             pin_code=account['pin_code'],
-            created_at=account['created_at']
+            created_at=str(account['created_at'])
         )
     except HTTPException:
         raise
@@ -339,4 +339,4 @@ async def get_current_customer_details(customer_id_hash: str = Depends(get_curre
         logger.error(f"Get current customer error: {str(e)}")
         raise HTTPException(status_code=500, detail={"error": "Internal server error", "status_code": 500})
     finally:
-        db_connection.close()
+        close_connection(db_connection)

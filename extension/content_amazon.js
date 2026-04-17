@@ -4,7 +4,7 @@
 const TIP_CONFIG = {
   apiUrl:     'http://127.0.0.1:8000',
   merchantId: 'merchant_amazon',
-  dashboardUrl: 'http://localhost:5174',
+  dashboardUrl: 'http://127.0.0.1:5173',
 };
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -24,6 +24,8 @@ let consecutiveScoreErrors = 0;
 let lastFailedOrderFingerprint = null;
 let lastRouteSignature = '';
 let scanIntervalId = null;
+let lastBulkScoreAt = 0;
+let isBulkScoringInFlight = false;
 
 const SCORE_RETRY_BASE_MS = 5000;
 const SCORE_RETRY_MAX_MS = 30000;
@@ -57,6 +59,22 @@ function getSiteConfig() {
   return null;
 }
 
+function detectLocalMockPlatform() {
+  const host = window.location.hostname;
+  const isLocalHost = host.includes('localhost') || host.includes('127.0.0.1');
+  if (!isLocalHost) return null;
+
+  if (document.getElementById('app-layout') || document.getElementById('demo-account-select')) {
+    return 'amazon';
+  }
+
+  if (document.getElementById('app') && !document.getElementById('app-layout')) {
+    return 'flipkart';
+  }
+
+  return 'amazon';
+}
+
 function getDefaultMerchantIdByHost() {
   const host = window.location.hostname;
 
@@ -65,6 +83,8 @@ function getDefaultMerchantIdByHost() {
   }
 
   if (host.includes('localhost') || host.includes('127.0.0.1')) {
+    const platform = detectLocalMockPlatform();
+    if (platform === 'flipkart') return 'merchant_flipkart';
     return 'merchant_amazon';
   }
 
@@ -78,6 +98,150 @@ function normalizeMerchantId(merchantId) {
   if (value === 'merchant-flipkart') return 'merchant_flipkart';
   if (value === 'merchant-local' || value === 'merchant_local') return 'merchant_amazon';
   return value;
+}
+
+function merchantCacheKey(merchantId) {
+  return `tip_cached_orders_${normalizeMerchantId(merchantId)}`;
+}
+
+function cacheMerchantOrders(merchantId, orders) {
+  const normalized = normalizeMerchantId(merchantId);
+  const payload = {
+    merchant_id: normalized,
+    cached_at: new Date().toISOString(),
+    orders: Array.isArray(orders) ? orders : [],
+  };
+  const key = merchantCacheKey(normalized);
+
+  try {
+    window.localStorage.setItem(key, JSON.stringify(payload));
+  } catch {
+    // Ignore storage quota/security errors for page localStorage.
+  }
+
+  if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+    chrome.storage.local.set({ [key]: payload }, () => {
+      // Best-effort cache sync for dashboard handoff.
+    });
+  }
+}
+
+async function seedDashboardOrderCache() {
+  const host = window.location.hostname;
+  const port = String(window.location.port || '');
+  const isDashboardLocal = (host.includes('localhost') || host.includes('127.0.0.1')) && (port === '5173' || port === '5174');
+  if (!isDashboardLocal) return;
+  if (typeof chrome === 'undefined' || !chrome.storage?.local) return;
+
+  const params = new URLSearchParams(window.location.search || '');
+  const merchantFromUrl = params.get('merchant') || params.get('merchant_id');
+  const merchantFromStorage = window.localStorage.getItem('tip_merchant_id');
+  const targetMerchantId = normalizeMerchantId(merchantFromUrl || merchantFromStorage || TIP_CONFIG.merchantId);
+  const cached = await new Promise((resolve) => {
+    chrome.storage.local.get(null, resolve);
+  });
+
+  try {
+    for (const [key, payload] of Object.entries(cached || {})) {
+      if (!key.startsWith('tip_cached_orders_')) continue;
+      if (!payload || !Array.isArray(payload.orders)) continue;
+      window.localStorage.setItem(key, JSON.stringify(payload));
+    }
+
+    window.localStorage.setItem('tip_merchant_id', targetMerchantId);
+  } catch {
+    // Ignore localStorage failures on dashboard origin.
+  }
+}
+
+const MOCK_SELLER_TO_MERCHANT = {
+  amazon: {
+    seller1: 'merchant_amazon_seller1',
+    seller2: 'merchant_amazon_seller2',
+    seller3: 'merchant_amazon_seller3',
+  },
+  flipkart: {
+    seller1: 'merchant_flipkart_seller1',
+    seller2: 'merchant_flipkart_seller2',
+    seller3: 'merchant_flipkart_seller3',
+  },
+};
+
+const MOCK_SELLER_NAME_TO_ID = {
+  'snoxx electronics': 'seller1',
+  'fashionfirst india': 'seller2',
+  'quickmart essentials': 'seller3',
+  'techzone seller': 'seller1',
+  'garmentking': 'seller2',
+  'homeessentials': 'seller3',
+};
+
+function detectActiveMockSellerId() {
+  const host = window.location.hostname;
+  const isLocalHost = host.includes('localhost') || host.includes('127.0.0.1');
+  if (!isLocalHost) return null;
+
+  const platform = detectLocalMockPlatform();
+  const platformMap = MOCK_SELLER_TO_MERCHANT[platform] || {};
+
+  const bodySellerId = document.body?.dataset?.tipSellerId;
+  if (bodySellerId && platformMap[bodySellerId]) return bodySellerId;
+
+  const selectedId = document.getElementById('demo-account-select')?.value;
+  if (selectedId && platformMap[selectedId]) return selectedId;
+
+  const sellerName = (
+    document.getElementById('header-seller-name')?.textContent ||
+    document.querySelector('.seller-info span')?.textContent ||
+    ''
+  ).trim().toLowerCase();
+
+  if (sellerName && MOCK_SELLER_NAME_TO_ID[sellerName]) {
+    return MOCK_SELLER_NAME_TO_ID[sellerName];
+  }
+
+  return null;
+}
+
+let lastSyncedMerchantId = null;
+
+function resolveActiveMerchantId() {
+  const host = window.location.hostname;
+  const isLocalHost = host.includes('localhost') || host.includes('127.0.0.1');
+
+  if (isLocalHost) {
+    const platform = detectLocalMockPlatform();
+    const platformMap = MOCK_SELLER_TO_MERCHANT[platform] || {};
+    const sellerId = detectActiveMockSellerId();
+    if (sellerId && platformMap[sellerId]) {
+      return normalizeMerchantId(platformMap[sellerId]);
+    }
+
+    if (platform === 'flipkart') {
+      return 'merchant_flipkart';
+    }
+    if (platform === 'amazon') {
+      return 'merchant_amazon';
+    }
+  }
+
+  return normalizeMerchantId(TIP_CONFIG.merchantId);
+}
+
+function syncActiveMerchantContext() {
+  const resolvedMerchantId = resolveActiveMerchantId();
+  TIP_CONFIG.merchantId = resolvedMerchantId;
+
+  if (resolvedMerchantId === lastSyncedMerchantId) return resolvedMerchantId;
+  lastSyncedMerchantId = resolvedMerchantId;
+
+  if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+    chrome.storage.local.set({ merchantId: resolvedMerchantId }, () => {
+      // No-op: best-effort sync for popup/content consistency.
+    });
+  }
+
+  return resolvedMerchantId;
 }
 
 function resolveOrderScore(order) {
@@ -129,6 +293,7 @@ async function init() {
   if (!config) return;
 
   await loadRuntimeConfig();
+  await seedDashboardOrderCache();
   if (!extensionEnabled) {
     console.log('[TIP] Extension disabled until sign-in toggle is enabled in popup');
     return;
@@ -177,8 +342,8 @@ async function loadRuntimeConfig() {
   TIP_CONFIG.merchantId = getDefaultMerchantIdByHost();
   TIP_CONFIG.apiUrl = cfg.apiUrl || TIP_CONFIG.apiUrl;
   TIP_CONFIG.dashboardUrl = cfg.dashboardUrl || TIP_CONFIG.dashboardUrl;
-  if (typeof TIP_CONFIG.dashboardUrl === 'string' && TIP_CONFIG.dashboardUrl.includes(':5173')) {
-    TIP_CONFIG.dashboardUrl = 'http://localhost:5174';
+  if (typeof TIP_CONFIG.dashboardUrl === 'string' && TIP_CONFIG.dashboardUrl.includes(':5174')) {
+    TIP_CONFIG.dashboardUrl = 'http://127.0.0.1:5173';
   }
   if (isLocalHost && cfg.merchantId) {
     TIP_CONFIG.merchantId = normalizeMerchantId(cfg.merchantId);
@@ -193,6 +358,18 @@ function isLoggedInSellerPage() {
   const isLocalMock = host.includes('localhost') || host.includes('127.0.0.1');
 
   if (!isLocalMock) return true;
+
+  const platform = detectLocalMockPlatform();
+  if (platform === 'flipkart') {
+    const hashRoute = String(window.location.hash || '').replace(/^#/, '').trim().toLowerCase();
+    const loginWrapper = document.querySelector('.login-wrapper');
+    const currentUser = window.app?.currentUser || null;
+
+    if (hashRoute === 'login') return false;
+    if (loginWrapper && loginWrapper.offsetParent !== null) return false;
+    if (!currentUser) return false;
+    return true;
+  }
 
   const loginPage = document.getElementById('login-page');
   const appLayout = document.getElementById('app-layout');
@@ -1034,13 +1211,14 @@ function injectSidebar(platformName) {
 
   const postOutcome = async (result) => {
     if (!currentOrderId) return;
+    const merchantId = syncActiveMerchantContext();
     try {
       await fetch(`${TIP_CONFIG.apiUrl}/v1/outcome`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           order_id: currentOrderId,
-          merchant_id: TIP_CONFIG.merchantId,
+          merchant_id: merchantId,
           raw_buyer_id: currentHashedId || currentOrderId,
           result,
         }),
@@ -1051,15 +1229,27 @@ function injectSidebar(platformName) {
   };
 
   const openDashboard = () => {
+    const merchantId = syncActiveMerchantContext();
+    let targetUrl = TIP_CONFIG.dashboardUrl;
+
+    try {
+      const url = new URL(TIP_CONFIG.dashboardUrl, window.location.origin);
+      url.searchParams.set('merchant', merchantId);
+      targetUrl = url.toString();
+    } catch {
+      // Fallback to configured URL if URL parsing fails.
+      targetUrl = TIP_CONFIG.dashboardUrl;
+    }
+
     if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
-      chrome.runtime.sendMessage({ type: 'OPEN_DASHBOARD', url: TIP_CONFIG.dashboardUrl }, () => {
+      chrome.runtime.sendMessage({ type: 'OPEN_DASHBOARD', url: targetUrl }, () => {
         if (chrome.runtime.lastError) {
-          window.open(TIP_CONFIG.dashboardUrl, '_blank');
+          window.open(targetUrl, '_blank');
         }
       });
       return;
     }
-    window.open(TIP_CONFIG.dashboardUrl, '_blank');
+    window.open(targetUrl, '_blank');
   };
 
   document.getElementById('tip-collapse-btn').addEventListener('click', () => {
@@ -1088,6 +1278,13 @@ function injectSidebar(platformName) {
     e.preventDefault();
     openDashboard();
   });
+
+  const openDashboardLink = document.getElementById('tip-open-dashboard');
+  if (openDashboardLink) {
+    openDashboardLink.setAttribute('href', `http://127.0.0.1:5173/?merchant=${encodeURIComponent(syncActiveMerchantContext())}`);
+    openDashboardLink.setAttribute('target', '_blank');
+    openDashboardLink.setAttribute('rel', 'noopener noreferrer');
+  }
 
   document.getElementById('tip-buyer-head').addEventListener('click', () => {
     const body = document.getElementById('tip-buyer-content');
@@ -1516,6 +1713,106 @@ function extractOrderData() {
   };
 }
 
+function buildLocalMockOrderPayloads(merchantId) {
+  const host = window.location.hostname;
+  const isLocalMock = host.includes('localhost') || host.includes('127.0.0.1');
+  if (!isLocalMock) return [];
+
+  const platform = detectLocalMockPlatform();
+  const sellerId = detectActiveMockSellerId();
+
+  if (platform === 'amazon') {
+    const all = Array.isArray(window.SellerData?.allOrders) ? window.SellerData.allOrders : [];
+    const sellerOrders = all.filter((order) => !sellerId || order.sellerId === sellerId);
+
+    return sellerOrders.map((order) => {
+      const orderDate = new Date(order.date || Date.now());
+      return {
+        order_id: String(order.id || '').trim(),
+        raw_buyer_id: String(order.buyerId || order.email || order.id || '').trim(),
+        merchant_id: merchantId,
+        order_value: Number(order.orderValue || order.value || 0),
+        is_cod: /cod|cash on delivery/i.test(String(order.paymentMethod || '')) ? 1 : 0,
+        pin_code: String(order.pin || '110001'),
+        item_count: Number(order.qty || 1),
+        installments: 1,
+        order_month: (Number.isNaN(orderDate.getTime()) ? new Date() : orderDate).getMonth() + 1,
+      };
+    }).filter((payload) => payload.order_id && payload.raw_buyer_id && payload.order_value >= 0);
+  }
+
+  if (platform === 'flipkart') {
+    const all = Array.isArray(window.app?.allOrders) ? window.app.allOrders : [];
+    const activeSellerId = window.app?.currentUser?.id || sellerId;
+    const sellerOrders = all.filter((order) => !activeSellerId || order.sellerId === activeSellerId);
+
+    return sellerOrders.map((order) => {
+      const orderDate = order.date instanceof Date ? order.date : new Date(order.date || Date.now());
+      return {
+        order_id: String(order.orderId || '').trim(),
+        raw_buyer_id: String(order.buyerId || order.buyerEmail || order.orderId || '').trim(),
+        merchant_id: merchantId,
+        order_value: Number(order.price || 0),
+        is_cod: /cod|cash on delivery/i.test(String(order.paymentType || '')) ? 1 : 0,
+        pin_code: String(order?.location?.pin || '110001'),
+        item_count: 1,
+        installments: 1,
+        order_month: (Number.isNaN(orderDate.getTime()) ? new Date() : orderDate).getMonth() + 1,
+      };
+    }).filter((payload) => payload.order_id && payload.raw_buyer_id && payload.order_value >= 0);
+  }
+
+  return [];
+}
+
+async function ensureLocalMockOrdersScored() {
+  const host = window.location.hostname;
+  const isLocalMock = host.includes('localhost') || host.includes('127.0.0.1');
+  if (!isLocalMock) return;
+  if (!isLoggedInSellerPage()) return;
+  if (isBulkScoringInFlight) return;
+  if (Date.now() - lastBulkScoreAt < 15000) return;
+
+  const merchantId = syncActiveMerchantContext();
+  const payloads = buildLocalMockOrderPayloads(merchantId);
+  if (!payloads.length) {
+    lastBulkScoreAt = Date.now();
+    return;
+  }
+
+  let existingIds = new Set();
+  try {
+    const existing = await fetch(`${TIP_CONFIG.apiUrl}/v1/scores/${merchantId}?limit=500`);
+    if (existing.ok) {
+      const data = await existing.json();
+      const rows = Array.isArray(data?.orders) ? data.orders : [];
+      existingIds = new Set(rows.map((row) => String(row.order_id || row.id || '').trim()).filter(Boolean));
+    }
+  } catch {
+    // Proceed with blind scoring when score list cannot be fetched.
+  }
+
+  const missing = payloads.filter((payload) => !existingIds.has(payload.order_id)).slice(0, 250);
+  if (!missing.length) {
+    lastBulkScoreAt = Date.now();
+    return;
+  }
+
+  isBulkScoringInFlight = true;
+  try {
+    for (const payload of missing) {
+      try {
+        await scoreOrder(payload);
+      } catch {
+        // Keep scoring remaining orders even when one request fails.
+      }
+    }
+  } finally {
+    isBulkScoringInFlight = false;
+    lastBulkScoreAt = Date.now();
+  }
+}
+
 // ── API calls ─────────────────────────────────────────────────────────────────
 async function scoreOrder(payload) {
   const r = await fetch(`${TIP_CONFIG.apiUrl}/v1/score`, {
@@ -1546,6 +1843,7 @@ async function getAreaIntelligence(pinCode) {
 // ── Main flow ─────────────────────────────────────────────────────────────────
 async function tryExtractAndScore() {
   if (!extensionEnabled) return;
+  syncActiveMerchantContext();
 
   const routeSignature = `${window.location.href}|${Boolean(document.getElementById('order-detail-page')?.classList.contains('active'))}`;
   if (routeSignature !== lastRouteSignature) {
@@ -1637,6 +1935,8 @@ async function tryExtractAndScore() {
 }
 
 async function showMerchantSummary() {
+  syncActiveMerchantContext();
+  await ensureLocalMockOrdersScored();
   const scoreValue = document.getElementById('tip-score-value');
   const scoreRing = document.getElementById('tip-score-ring');
   const flagText = document.getElementById('tip-flag-text');
@@ -1699,6 +1999,7 @@ async function showMerchantSummary() {
     if (!r.ok) throw new Error('No data');
     const data = await r.json();
     const orders = data.orders || [];
+    cacheMerchantOrders(TIP_CONFIG.merchantId, orders);
 
     if (orders.length === 0) {
       scoreValue.textContent = '--';

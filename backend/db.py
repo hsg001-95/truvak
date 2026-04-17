@@ -1,6 +1,7 @@
 import os
 
 from backend.db_adapter import get_connection as adapter_get_connection
+from backend.db_adapter import close_connection
 from backend.db_adapter import is_postgres
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'trust.db')
@@ -93,7 +94,7 @@ def init_db():
     """)
 
     conn.commit()
-    conn.close()
+    close_connection(conn)
     print("Database initialised successfully.")
 
 if __name__ == "__main__":

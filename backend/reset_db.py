@@ -2,6 +2,7 @@
 import sys, os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from backend.db import get_connection
+from backend.db_adapter import close_connection
 
 conn = get_connection()
 cursor = conn.cursor()
@@ -10,5 +11,5 @@ cursor.execute("DELETE FROM orders")
 cursor.execute("DELETE FROM outcomes")
 conn.commit()
 cursor.close()
-conn.close()
+close_connection(conn)
 print("Database cleared. All scored orders deleted.")
